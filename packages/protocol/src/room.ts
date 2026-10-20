@@ -16,11 +16,24 @@ export const ROOM_PHASES = [
 ] as const
 export type RoomPhase = (typeof ROOM_PHASES)[number]
 
+// Heritage backdrops a host can pick for the room (docs/art-direction.md §4).
+export const VENUES = [
+  'NYATAPOLA',
+  'KRISHNA_MANDIR',
+  'BASANTAPUR',
+  'CHANGU_NARAYAN',
+  'SWAYAMBHU',
+  'GORKHA_DURBAR',
+] as const
+export const venueSchema = z.enum(VENUES)
+export type Venue = z.infer<typeof venueSchema>
+
 // ---------- API (tRPC) ----------
 
 export const createRoomInputSchema = z.object({
   name: z.string().trim().min(3).max(40),
   visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),
+  venue: venueSchema.default('NYATAPOLA'),
   deposit: z.number().int().positive(),
   limits: z
     .object({
@@ -71,6 +84,7 @@ export type InvitePreview = z.infer<typeof invitePreviewSchema>
 export const roomSummarySchema = z.object({
   roomId: z.string(),
   name: z.string(),
+  venue: venueSchema,
   host: z.object({ id: z.string(), displayName: z.string() }),
   status: z.enum(['OPEN', 'PAUSED', 'CLOSED']),
   minBet: z.number(),
@@ -214,6 +228,7 @@ export const roomSnapshotSchema = z.object({
   maxBetPerPlayerPerRound: z.number(),
   isPrivate: z.boolean(),
   isLocked: z.boolean(),
+  venue: venueSchema,
   members: z.record(
     z.string(),
     z.object({

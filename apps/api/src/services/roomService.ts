@@ -4,7 +4,7 @@ import { getOrCreateAccount } from '@jhandi/ledger/accounts'
 import { UNIQUE_VIOLATION, pgErrorCode } from '@jhandi/ledger/pgError'
 import { postTransaction } from '@jhandi/ledger/postTransaction'
 import { AppError } from '@jhandi/protocol/appError'
-import type { Invite, RoomSummary } from '@jhandi/protocol/room'
+import { venueSchema, type Invite, type RoomSummary, type Venue } from '@jhandi/protocol/room'
 import { z } from 'zod'
 import { db } from '#lib/db'
 import { findActiveRoomOfHost, insertRoom, listOpenPublicRooms } from '#repositories/roomRepository'
@@ -12,11 +12,10 @@ import { findUserById } from '#repositories/userRepository'
 import { issueInvite } from '#services/inviteService'
 import { getSettings } from '#services/settingsService'
 
-const DEFAULT_VENUE = 'NYATAPOLA'
-
 interface CreateRoomInput {
   name: string
   visibility: 'PUBLIC' | 'PRIVATE'
+  venue: Venue
   deposit: number
   limits: Partial<
     Pick<RoomLimits, 'minBet' | 'maxBetPerSymbol' | 'maxBetPerPlayerPerRound' | 'bettingWindowSec'>
@@ -56,7 +55,7 @@ export const createRoom = async (
         name: input.name,
         visibility: input.visibility,
         maxMembers: isPrivate ? PRIVATE_ROOM_MAX_MEMBERS : null,
-        venue: DEFAULT_VENUE,
+        venue: input.venue,
         config: limits.data,
       })
       if (isPrivate) invite = await issueInvite(tx, roomId, hostId)
@@ -91,6 +90,7 @@ const toSummary = (row: SummaryRow): RoomSummary => {
   return {
     roomId: row.id,
     name: row.name,
+    venue: venueSchema.catch('NYATAPOLA').parse(row.venue),
     host: { id: row.hostId, displayName: row.hostName },
     status: row.status,
     minBet: limits.minBet,

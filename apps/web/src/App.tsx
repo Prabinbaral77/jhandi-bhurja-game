@@ -1,19 +1,21 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import Layout from '@/components/Layout'
 import RequireAuth from '@/components/RequireAuth'
 import { useBootstrapSession } from '@/hooks/useBootstrapSession'
 import { createApiClient, TRPCProvider } from '@/lib/trpc'
-import CreateRoomPage from '@/pages/CreateRoomPage'
 import HomePage from '@/pages/HomePage'
-import InvitePage from '@/pages/InvitePage'
-import RoomPage from '@/pages/RoomPage'
-import RoomsPage from '@/pages/RoomsPage'
 import SignInPage from '@/pages/SignInPage'
-import StatusPage from '@/pages/StatusPage'
-import WalletPage from '@/pages/WalletPage'
-import WelcomePage from '@/pages/WelcomePage'
+
+// Route-level code splitting: the room (art, dice, Colyseus) only loads when entering a room.
+const CreateRoomPage = lazy(() => import('@/pages/CreateRoomPage'))
+const InvitePage = lazy(() => import('@/pages/InvitePage'))
+const RoomPage = lazy(() => import('@/pages/RoomPage'))
+const RoomsPage = lazy(() => import('@/pages/RoomsPage'))
+const StatusPage = lazy(() => import('@/pages/StatusPage'))
+const WalletPage = lazy(() => import('@/pages/WalletPage'))
+const WelcomePage = lazy(() => import('@/pages/WelcomePage'))
 
 export default function App() {
   const [queryClient] = useState(
@@ -27,67 +29,69 @@ export default function App() {
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
         <BrowserRouter>
           <Layout>
-            <Routes>
-              <Route path="/signin" element={<SignInPage />} />
-              <Route path="/status" element={<StatusPage />} />
-              <Route
-                path="/welcome"
-                element={
-                  <RequireAuth>
-                    <WelcomePage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/wallet"
-                element={
-                  <RequireAuth>
-                    <WalletPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/r/:inviteToken"
-                element={
-                  <RequireAuth>
-                    <InvitePage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/rooms"
-                element={
-                  <RequireAuth>
-                    <RoomsPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/host/new"
-                element={
-                  <RequireAuth>
-                    <CreateRoomPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/room/:roomId"
-                element={
-                  <RequireAuth>
-                    <RoomPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/"
-                element={
-                  <RequireAuth>
-                    <HomePage />
-                  </RequireAuth>
-                }
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Suspense fallback={<p className="text-cream/60">…</p>}>
+              <Routes>
+                <Route path="/signin" element={<SignInPage />} />
+                <Route path="/status" element={<StatusPage />} />
+                <Route
+                  path="/welcome"
+                  element={
+                    <RequireAuth>
+                      <WelcomePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/wallet"
+                  element={
+                    <RequireAuth>
+                      <WalletPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/r/:inviteToken"
+                  element={
+                    <RequireAuth>
+                      <InvitePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/rooms"
+                  element={
+                    <RequireAuth>
+                      <RoomsPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/host/new"
+                  element={
+                    <RequireAuth>
+                      <CreateRoomPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/room/:roomId"
+                  element={
+                    <RequireAuth>
+                      <RoomPage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <RequireAuth>
+                      <HomePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </Layout>
         </BrowserRouter>
       </TRPCProvider>

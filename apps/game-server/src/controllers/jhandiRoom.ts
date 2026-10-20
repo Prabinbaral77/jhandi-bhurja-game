@@ -17,8 +17,10 @@ import {
   ROOM_CLIENT_MESSAGES as IN,
   ROOM_SERVER_MESSAGES as OUT,
   topUpMessageSchema,
+  venueSchema,
   type RoomPhase,
   type RoundSettledMessage,
+  type Venue,
   type TxFeedMessage,
 } from '@jhandi/protocol/room'
 import { Room, type Client } from '@colyseus/core'
@@ -166,6 +168,7 @@ export class JhandiRoom extends Room<{
     state.maxBetPerPlayerPerRound = this.limits.maxBetPerPlayerPerRound
     state.isPrivate = this.isPrivate
     state.isLocked = found.room.isLocked
+    state.venue = venueSchema.catch('NYATAPOLA').parse(found.room.venue)
     state.bankBalance = await balanceOf(this.bankAccountId)
     for (const symbol of SYMBOLS) state.board.set(symbol, new SymbolTotalState())
     for (const dice of await recentDice(dbRoomId, HISTORY_LENGTH)) {
@@ -777,6 +780,7 @@ export class JhandiRoom extends Room<{
       name: this.state.name,
       hostId: this.hostId,
       hostName: this.names.get(this.hostId) ?? '',
+      venue: this.state.venue as Venue,
       phase: this.phase,
       roundNo: this.state.roundNo,
       players,

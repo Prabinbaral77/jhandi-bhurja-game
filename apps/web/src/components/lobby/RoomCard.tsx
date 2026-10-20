@@ -1,7 +1,7 @@
 import type { RoomLiveSummary } from '@jhandi/protocol/lobby'
 import type { RoomSummary } from '@jhandi/protocol/room'
 import { Link } from 'react-router'
-import { SYMBOL_GLYPH } from '@/components/room/symbolStyle'
+import SymbolIcon from '@/components/art/SymbolIcon'
 import { useT } from '@/lib/i18n'
 import { formatCoins } from '@/utils/format'
 
@@ -30,7 +30,7 @@ export default function RoomCard({ room }: { room: LobbyRoom }) {
         <div>
           <h2 className="text-lg font-semibold">{base.name}</h2>
           <p className="text-sm text-cream/70">
-            {t('host')}: {live?.hostName ?? base.host.displayName}
+            {t('host')}: {live?.hostName ?? base.host.displayName} · {t(`venue.${base.venue}`)}
           </p>
         </div>
         <span className={`shrink-0 text-sm font-semibold ${phaseTone}`}>
@@ -59,8 +59,10 @@ export default function RoomCard({ room }: { room: LobbyRoom }) {
       {live && live.lastResults.length > 0 && (
         <ul className="flex flex-wrap gap-2" aria-label={t('lastResults')}>
           {live.lastResults.map((dice, i) => (
-            <li key={i} className="rounded-md bg-cream/10 px-1.5 py-0.5 text-sm tracking-wide">
-              {dice.map((d) => SYMBOL_GLYPH[d]).join('')}
+            <li key={i} className="flex gap-0.5 rounded-md bg-cream/10 px-1.5 py-1">
+              {dice.map((d, j) => (
+                <SymbolIcon key={j} symbol={d} size={14} />
+              ))}
             </li>
           ))}
         </ul>

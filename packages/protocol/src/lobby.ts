@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ROOM_PHASES } from '#room'
+import { ROOM_PHASES, VENUES } from '#room'
 
 const symbolSchema = z.enum(['CROWN', 'FLAG', 'HEART', 'SPADE', 'DIAMOND', 'CLUB'])
 
@@ -11,6 +11,7 @@ export const roomLiveSummarySchema = z.object({
   name: z.string(),
   hostId: z.string(),
   hostName: z.string(),
+  venue: z.enum(VENUES),
   phase: z.enum(ROOM_PHASES),
   roundNo: z.number(),
   players: z.number(),

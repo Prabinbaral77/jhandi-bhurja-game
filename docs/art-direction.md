@@ -2,6 +2,10 @@
 
 > For the artist(s) and UI designer. Theme and cultural rules come from [architecture.md](architecture.md) §9. Art work starts in M0 and is integrated in M6; developers use placeholders until then.
 
+## 0. Status (v1)
+
+No artist was available for v1, so the art below exists as **original in-house vector art** (inline SVG/CSS in `apps/web/src/components/art/`): six symbols (colour + brass-inlay variants), wooden dice, Dhaka khal board with brass corners, six venue skylines, marigold garland, kites. It follows the palette and cultural rules here and can be replaced piece by piece by commissioned art without touching game code. Sound effects are synthesised in the browser (no files); the Malshree dhun needs a licensed recording.
+
 ## 1. The feeling
 
 Playing Jhandi Burja on a _khal_ spread on the brick floor of a Newari courtyard during Dashain: warm evening light, temples behind, kites in the sky, family laughing around the board.

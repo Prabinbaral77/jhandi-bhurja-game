@@ -12,6 +12,7 @@ export const insertRoom = async (tx: DbOrTx, room: typeof rooms.$inferInsert) =>
 const summaryColumns = {
   id: rooms.id,
   name: rooms.name,
+  venue: rooms.venue,
   status: rooms.status,
   config: rooms.config,
   createdAt: rooms.createdAt,

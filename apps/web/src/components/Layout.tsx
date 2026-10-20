@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { Link, NavLink } from 'react-router'
+import Garland from '@/components/art/Garland'
 import Button from '@/components/Button'
 import CoinAmount from '@/components/CoinAmount'
+import SoundToggle from '@/components/SoundToggle'
 import { useAuthStore } from '@/lib/authStore'
 import { useLanguageStore, useT } from '@/lib/i18n'
 import { logout } from '@/lib/session'
@@ -33,6 +35,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               <CoinAmount amount={wallet.data.balance} />
             </Link>
           )}
+          <SoundToggle />
           <Button
             variant="ghost"
             className="min-h-9 px-2 text-sm"
@@ -44,6 +47,7 @@ export default function Layout({ children }: { children: ReactNode }) {
           </Button>
         </div>
       </header>
+      <Garland />
       {auth.status === 'signedIn' && (
         <nav className="flex items-center gap-1 py-2">
           <NavLink to="/" end className={navClass}>

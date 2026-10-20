@@ -1,21 +1,24 @@
 import type { GameSymbol } from '@jhandi/game-rules/symbols'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
+import VenueBackdrop from '@/components/art/VenueBackdrop'
 import Button from '@/components/Button'
 import CoinAmount from '@/components/CoinAmount'
 import Board from '@/components/room/Board'
 import ChipPicker from '@/components/room/ChipPicker'
-import DiceRow from '@/components/room/DiceRow'
+import DiceArena from '@/components/room/DiceArena'
 import FloatingReactions from '@/components/room/FloatingReactions'
 import HostControls from '@/components/room/HostControls'
 import InvitePanel from '@/components/room/InvitePanel'
 import ResultBanner from '@/components/room/ResultBanner'
 import SidePanel from '@/components/room/SidePanel'
 import { useJhandiRoom } from '@/hooks/useJhandiRoom'
+import { useRoomSounds } from '@/hooks/useRoomSounds'
 import { useSecondsLeft } from '@/hooks/useSecondsLeft'
 import { useAuthStore } from '@/lib/authStore'
 import { isMessageKey, useT } from '@/lib/i18n'
 import { useRoomStore } from '@/lib/roomStore'
+import { isVenue } from '@/lib/venues'
 
 export default function RoomPage() {
   const { roomId = '' } = useParams()
@@ -31,9 +34,17 @@ export default function RoomPage() {
     connection,
     connectionError,
     closedReason,
+    feed,
   } = useRoomStore()
   const [chip, setChip] = useState(10)
   const secondsLeft = useSecondsLeft(snapshot?.phase === 'BETTING' ? snapshot.bettingEndsAt : 0)
+  useRoomSounds({
+    phase: snapshot?.phase,
+    lastResult,
+    roundId: snapshot?.roundId,
+    feed,
+    secondsLeft,
+  })
 
   if (connection === 'closed' && connectionError) {
     return (
@@ -73,27 +84,32 @@ export default function RoomPage() {
   const betChip = Math.max(chip, snapshot.minBet)
   const errorKey = lastError ? `error.${lastError.code}` : null
 
+  const venue = isVenue(snapshot.venue) ? snapshot.venue : 'NYATAPOLA'
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
       <div className="flex flex-col gap-4">
-        <header className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h1 className="text-2xl font-bold">{snapshot.name}</h1>
-            <p className="text-sm text-cream/60">
-              {t('round')} #{snapshot.roundNo} · {t('bank')}{' '}
-              <CoinAmount amount={snapshot.bankBalance} />
-            </p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg font-semibold text-marigold">
-              {t(`phase.${snapshot.phase}`)}
-              {snapshot.phase === 'BETTING' && ` · ${t('timeLeft', { s: secondsLeft })}`}
-            </p>
-            {wallet !== null && (
-              <p className="text-sm">
-                <CoinAmount amount={wallet} />
+        <header className="relative -mx-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
+          <VenueBackdrop venue={venue} className="h-40 w-full sm:h-48" />
+          <div className="absolute inset-x-0 bottom-0 flex flex-wrap items-end justify-between gap-2 bg-gradient-to-t from-black/70 to-transparent px-4 pb-3 pt-8">
+            <div>
+              <h1 className="text-2xl font-bold">{snapshot.name}</h1>
+              <p className="text-sm text-cream/80">
+                {t(`venue.${venue}`)} · {t('round')} #{snapshot.roundNo} · {t('bank')}{' '}
+                <CoinAmount amount={snapshot.bankBalance} />
               </p>
-            )}
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-semibold text-marigold">
+                {t(`phase.${snapshot.phase}`)}
+                {snapshot.phase === 'BETTING' && ` · ${t('timeLeft', { s: secondsLeft })}`}
+              </p>
+              {wallet !== null && (
+                <p className="text-sm">
+                  <CoinAmount amount={wallet} />
+                </p>
+              )}
+            </div>
           </div>
         </header>
 
@@ -113,7 +129,7 @@ export default function RoomPage() {
           </p>
         )}
 
-        <DiceRow dice={snapshot.lastDice} rolling={snapshot.phase === 'ROLLING'} />
+        <DiceArena dice={snapshot.lastDice} phase={snapshot.phase} roundId={snapshot.roundId} />
         {snapshot.phase === 'RESULT' && lastResult?.roundId === snapshot.roundId && (
           <ResultBanner result={lastResult} isHost={isHost} />
         )}

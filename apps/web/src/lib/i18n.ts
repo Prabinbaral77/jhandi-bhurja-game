@@ -171,6 +171,15 @@ const ne = {
   'error.NOT_INVITED': 'यो निजी कोठा हो। लिंक वा कोड चाहिन्छ।',
   'error.ROOM_LOCKED': 'होस्टले अहिले नयाँ मानिस आउन रोकेका छन्।',
   'error.ROOM_FULL': 'कोठा भरिएको छ।',
+  venue: 'ठाउँ',
+  'venue.NYATAPOLA': 'न्यातपोल, भक्तपुर',
+  'venue.KRISHNA_MANDIR': 'कृष्ण मन्दिर, पाटन',
+  'venue.BASANTAPUR': 'बसन्तपुर दरबार',
+  'venue.CHANGU_NARAYAN': 'चाँगुनारायण',
+  'venue.SWAYAMBHU': 'स्वयम्भू',
+  'venue.GORKHA_DURBAR': 'गोरखा दरबार',
+  soundOn: 'आवाज खोल्नुहोस्',
+  soundOff: 'आवाज बन्द गर्नुहोस्',
 } as const
 
 export type MessageKey = keyof typeof ne
@@ -346,6 +355,15 @@ const en: Record<MessageKey, string> = {
   'error.NOT_INVITED': 'This room is private. You need the link or code.',
   'error.ROOM_LOCKED': 'The host is not letting new people in right now.',
   'error.ROOM_FULL': 'This room is full.',
+  venue: 'Venue',
+  'venue.NYATAPOLA': 'Nyatapola, Bhaktapur',
+  'venue.KRISHNA_MANDIR': 'Krishna Mandir, Patan',
+  'venue.BASANTAPUR': 'Basantapur Durbar',
+  'venue.CHANGU_NARAYAN': 'Changu Narayan',
+  'venue.SWAYAMBHU': 'Swayambhu',
+  'venue.GORKHA_DURBAR': 'Gorkha Durbar',
+  soundOn: 'Turn sound on',
+  soundOff: 'Turn sound off',
 }
 
 export type Language = 'ne' | 'en'

@@ -2,17 +2,17 @@
 
 > Updated after every task. Milestones are defined in [milestones.md](milestones.md).
 
-| Milestone                          | Status                                            |
-| ---------------------------------- | ------------------------------------------------- |
-| M0 Project setup                   | ✅ Done (engineering), art style guide pending    |
-| M1 Core game rules                 | ✅ Done                                           |
-| M2 Auth & wallet                   | ✅ Done                                           |
-| M3 Single-room MVP                 | ✅ Done                                           |
-| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL |
-| M5 Private rooms                   | ✅ Done (pending review & commit)                 |
-| M6 Heritage art, sound & Nepali UI | ⏳ Next                                           |
-| M7 Hardening & admin               | —                                                 |
-| M8 Beta & launch                   | —                                                 |
+| Milestone                          | Status                                                     |
+| ---------------------------------- | ---------------------------------------------------------- |
+| M0 Project setup                   | ✅ Done (engineering), art style guide pending             |
+| M1 Core game rules                 | ✅ Done                                                    |
+| M2 Auth & wallet                   | ✅ Done                                                    |
+| M3 Single-room MVP                 | ✅ Done                                                    |
+| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL          |
+| M5 Private rooms                   | ✅ Done                                                    |
+| M6 Heritage art, sound & Nepali UI | ✅ Done with in-house vector art (pending review & commit) |
+| M7 Hardening & admin               | ⏳ Next                                                    |
+| M8 Beta & launch                   | —                                                          |
 
 ## M0 — Project setup
 
@@ -146,18 +146,40 @@ Branch: `feat/m5-private-rooms`.
 - Lock → `ROOM_LOCKED` for new joins, members keep access ✅
 - Web screens not yet clicked through by a person ⏳
 
+## M6 — Heritage art, sound & Nepali UI
+
+Branch: `feat/m6-heritage-art`. All art is original inline SVG/CSS (no image files, no artist yet — see `docs/art-direction.md` §0).
+
+- [x] Six symbols as vector art (shirpech crown with plume, Nepal double-pennant flag, carved heart, pagoda-eave spade, Dhaka-zigzag diamond, lotus club), colour + brass-inlay variants — `apps/web/src/components/art/SymbolIcon.tsx` (created)
+- [x] **3D dice throw** (requested after review): six CSS `preserve-3d` cubes with a wooden face per symbol; the brass cup rattles for 1.4 s, tips over, the dice fly out, tumble, bounce twice across the cloth (deterministic per round, so every client sees the same throw) and settle on their real faces as RESULT arrives; joining mid-round plays the throw without the shake; `prefers-reduced-motion` shows them at rest — `art/Cube.tsx`, `room/DiceArena.tsx`, `lib/dice.ts` (created), `styles.css` (modified); old `DiceRow`/`Die` removed
+- [x] Khal board: Dhaka SVG pattern, brass corners, carved wooden tile frames, winning tiles glow with ×k badge — `art/Khal.tsx` (created), `room/Board.tsx` (modified)
+- [x] Six venue skylines (Nyatapola, Krishna Mandir, Basantapur, Changu Narayan, Swayambhu, Gorkha Durbar) with evening sky, moon and drifting kites; host picks the venue; shown in the room header and lobby — `art/VenueBackdrop.tsx`, `lib/venues.ts` (created); `CreateRoomPage`, `RoomPage`, `RoomCard` (modified); `venue` added to protocol, API, game-server state and lobby summary
+- [x] Dashain decor: marigold garland under the header — `art/Garland.tsx` (created), `Layout.tsx` (modified)
+- [x] Sound: Web Audio synthesised effects (coin, cancel, dice shake, reveal, win, lose, last-3-seconds tick) with a mute toggle remembered per browser — `lib/sound.ts`, `hooks/useRoomSounds.ts`, `components/SoundToggle.tsx` (created)
+- [x] Typography: Mukta (Devanagari + Latin) via Google Fonts, tabular numerals — `index.html`, `styles.css` (modified)
+- [x] Brass coin chips — `room/ChipPicker.tsx` (modified)
+- [x] Performance: route-level code splitting; first load now ~155 kB gzip JS + 7 kB CSS (was 266 kB in one chunk); room code loads on entering a room — `App.tsx` (modified)
+- [x] Visual check: components rendered to SVG → PNG and reviewed (scratch script, not in repo)
+- [x] Docs — `docs/art-direction.md` §0, `docs/architecture.md` §4 (PixiJS dropped)
+
+**Exit criteria check (2026-10-20):**
+
+- 60 fps on a mid-range Android: not measured on a device yet ⏳ (animations are transform/opacity only, which stays on the compositor; expected fine)
+- Cultural review: no deity images anywhere; the Swayambhu stupa is drawn without the eyes; all art original ✅
+- Initial download ≪ 3 MB ✅ (no image files at all)
+
 ## Tech debt
 
-| Item                                                                                                                                                         | Proper fix                                                               | When                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ----------------------- |
-| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                                   | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                     | Before beta (M8)        |
-| Per-IP rate limits are in process memory (API); Colyseus-side chat limits too                                                                                | Move to Redis                                                            | M4 (when Redis arrives) |
-| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                            | Create an OAuth client in Google Cloud                                   | When wanted             |
-| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                         | Host api/game-server in the DB region; consider a local Postgres for dev | M8 (hosting)            |
-| Board uses emoji placeholders; dice animation is a CSS bounce                                                                                                | Heritage art + PixiJS animation                                          | M6                      |
-| Multi-node not exercised: Redis driver/presence wired but unverified; production also needs sticky routing to the owning node (`@colyseus/proxy` or LB rule) | Provision Redis (Upstash, Mumbai), run 2 nodes, add proxy                | M8 (hosting)            |
-| Web bundle 866 kB (263 kB gzip)                                                                                                                              | Code-split routes; check what pulls in large deps                        | M6 (performance budget) |
-| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                              | Inject version at build time (tsup `define`)                             | M8 deploy               |
+| Item                                                                                                                                                         | Proper fix                                                                   | When                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ----------------------- |
+| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                                   | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                         | Before beta (M8)        |
+| Per-IP rate limits are in process memory (API); Colyseus-side chat limits too                                                                                | Move to Redis                                                                | M4 (when Redis arrives) |
+| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                            | Create an OAuth client in Google Cloud                                       | When wanted             |
+| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                         | Host api/game-server in the DB region; consider a local Postgres for dev     | M8 (hosting)            |
+| Multi-node not exercised: Redis driver/presence wired but unverified; production also needs sticky routing to the owning node (`@colyseus/proxy` or LB rule) | Provision Redis (Upstash, Mumbai), run 2 nodes, add proxy                    | M8 (hosting)            |
+| No Malshree dhun / background music (needs a licensed recording)                                                                                             | License a recording, add a music toggle separate from SFX                    | Before launch (M8)      |
+| In-house vector art is a v1 stand-in for commissioned heritage art                                                                                           | Commission an artist per `docs/art-direction.md`; swap components one by one | When budget allows      |
+| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                              | Inject version at build time (tsup `define`)                                 | M8 deploy               |
 
 ## Files touched (all milestones)
 

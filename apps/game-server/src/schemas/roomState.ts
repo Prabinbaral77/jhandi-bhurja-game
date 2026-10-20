@@ -39,6 +39,7 @@ export const JhandiState = schema(
     maxBetPerPlayerPerRound: t.number().default(0),
     isPrivate: t.boolean().default(false),
     isLocked: t.boolean().default(false),
+    venue: t.string().default('NYATAPOLA'),
     members: t.map(MemberState),
     board: t.map(SymbolTotalState),
     lastDice: t.array('string'),

@@ -24,6 +24,7 @@ const newPrivateRoom = async () => {
   const created = await createRoom(hostId, {
     name: 'Family room',
     visibility: 'PRIVATE',
+    venue: 'NYATAPOLA',
     deposit: 5_000,
     limits: {},
   })
@@ -96,6 +97,7 @@ describe('private rooms', () => {
     const pub = await createRoom(host, {
       name: 'Open room',
       visibility: 'PUBLIC',
+      venue: 'NYATAPOLA',
       deposit: 5_000,
       limits: {},
     })

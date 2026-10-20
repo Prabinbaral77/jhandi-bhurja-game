@@ -1,20 +1,11 @@
 import type { GameSymbol } from '@jhandi/game-rules/symbols'
 
-// Placeholder glyphs until the heritage artwork lands in M6 (docs/art-direction.md).
+// Text-only fallback for places that can't render SVG (share text, aria labels).
 export const SYMBOL_GLYPH: Record<GameSymbol, string> = {
-  CROWN: '👑',
-  FLAG: '🚩',
+  CROWN: '♛',
+  FLAG: '⚑',
   HEART: '♥',
   SPADE: '♠',
   DIAMOND: '♦',
   CLUB: '♣',
-}
-
-export const SYMBOL_COLOR: Record<GameSymbol, string> = {
-  CROWN: 'text-brass',
-  FLAG: 'text-tika',
-  HEART: 'text-tika',
-  SPADE: 'text-cream',
-  DIAMOND: 'text-tika',
-  CLUB: 'text-cream',
 }

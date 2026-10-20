@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import Button from '@/components/Button'
 import ErrorText from '@/components/ErrorText'
+import { VENUES, type Venue } from '@jhandi/protocol/room'
+import VenueBackdrop from '@/components/art/VenueBackdrop'
 import { useT } from '@/lib/i18n'
 import { rememberInvite } from '@/lib/inviteStore'
 import { useTRPC } from '@/lib/trpc'
@@ -23,6 +25,7 @@ export default function CreateRoomPage() {
   const [maxBetPerSymbol, setMaxBetPerSymbol] = useState(1_000)
   const [bettingWindowSec, setBettingWindowSec] = useState(20)
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC')
+  const [venue, setVenue] = useState<Venue>('NYATAPOLA')
 
   const create = useMutation(
     trpc.rooms.create.mutationOptions({
@@ -58,6 +61,7 @@ export default function CreateRoomPage() {
         create.mutate({
           name,
           visibility,
+          venue,
           deposit,
           limits: { minBet, maxBetPerSymbol, bettingWindowSec },
         })
@@ -94,6 +98,25 @@ export default function CreateRoomPage() {
           className={inputClass}
         />
       </label>
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm text-cream/80">{t('venue')}</legend>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {VENUES.map((v) => (
+            <button
+              key={v}
+              type="button"
+              aria-pressed={venue === v}
+              onClick={() => {
+                setVenue(v)
+              }}
+              className={`overflow-hidden rounded-lg border-2 text-left ${venue === v ? 'border-marigold' : 'border-cream/15'}`}
+            >
+              <VenueBackdrop venue={v} className="h-16 w-full" />
+              <span className="block px-2 py-1 text-xs">{t(`venue.${v}`)}</span>
+            </button>
+          ))}
+        </div>
+      </fieldset>
       {numberField(t('deposit'), deposit, setDeposit, MIN_DEPOSIT)}
       <p className="-mt-2 text-xs text-cream/60">
         {t('depositHint', { min: formatCoins(MIN_DEPOSIT) })}
