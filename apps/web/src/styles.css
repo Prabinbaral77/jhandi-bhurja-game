@@ -1,0 +1,12 @@
+@import 'tailwindcss';
+
+/* Mirrors packages/ui-theme/src/palette.ts (docs/art-direction.md §2). */
+@theme {
+  --color-brick: #a63d2a;
+  --color-tika: #d7262e;
+  --color-brass: #c9a23a;
+  --color-wood: #3b2418;
+  --color-jamara: #7baa3b;
+  --color-cream: #f3e6c8;
+  --color-marigold: #f2a51a;
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@jhandi/game-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "imports": {
+    "#*": "./src/*.ts"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file=../../.env src/server.ts",
+    "build": "tsup",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  },
+  "dependencies": {
+    "@colyseus/ws-transport": "^0.18.4",
+    "@jhandi/game-rules": "workspace:*",
+    "@jhandi/protocol": "workspace:*",
+    "colyseus": "^0.18.9",
+    "express": "^5.3.0",
+    "pino": "^10.4.0",
+    "zod": "^4.6.7"
+  }
+}
