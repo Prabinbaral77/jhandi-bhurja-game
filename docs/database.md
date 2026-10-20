@@ -4,6 +4,8 @@
 
 ## Rules
 
+- The DDL below is the design. The source of truth is the Drizzle schema in `packages/db/src/schema/` and the generated SQL in `packages/db/migrations/` (status/kind columns there are Postgres enums).
+- System accounts and platform settings are seeded by `0002_seed_settings.sql` with fixed ids (`packages/ledger/src/systemAccounts.ts`).
 - Hosted on **Supabase** Postgres. Apps connect through the **session pooler** (IPv4, supports prepared statements). If the transaction pooler (port 6543) is ever used, the client turns prepared statements off automatically.
 - All tables live in the **`jhandi` schema**, not `public`, so Supabase's Data API (which exposes `public` to anyone with the anon key) can never reach game data. The DDL below omits the `jhandi.` prefix for readability.
 - Connection pool is small (`DATABASE_POOL_MAX`, default 5) because Supabase pooler limits are low on small plans.
@@ -20,6 +22,7 @@
 | `users`             | M2        | Players / hosts                                               |
 | `auth_identities`   | M2        | Phone or Google identity per user                             |
 | `refresh_tokens`    | M2        | Hashed refresh tokens, for logout / rotation                  |
+| `otp_codes`         | M2        | Hashed one-time login codes, attempts, expiry                 |
 | `accounts`          | M2        | One balance per user, room bank, round escrow, system account |
 | `transactions`      | M2        | One business event (bet, settle, bonus …), idempotency key    |
 | `ledger_entries`    | M2        | Debit/credit lines of a transaction                           |
@@ -61,6 +64,17 @@ CREATE TABLE refresh_tokens (
   expires_at  timestamptz NOT NULL,
   revoked_at  timestamptz
 );
+
+CREATE TABLE otp_codes (
+  id           uuid PRIMARY KEY,
+  phone        text NOT NULL,
+  code_hash    text NOT NULL,        -- HMAC(AUTH_SECRET, phone + code); the code itself is never stored
+  attempts     int NOT NULL DEFAULT 0,
+  expires_at   timestamptz NOT NULL,
+  consumed_at  timestamptz,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX ON otp_codes (phone, created_at DESC);
 
 CREATE TABLE accounts (
   id          uuid PRIMARY KEY,
@@ -192,7 +206,9 @@ CREATE TABLE audit_log (
 );
 ```
 
-## Reconciliation query (nightly, M2)
+## Reconciliation (nightly, M2)
+
+Run with `pnpm --filter @jhandi/api reconcile` (exit code 1 on any problem). It also checks that every account's stored balance equals the sum of its ledger entries.
 
 ```sql
 -- Must return 0: every transaction balances.

@@ -6,8 +6,8 @@
 | ---------------------------------- | ---------------------------------------------- |
 | M0 Project setup                   | ✅ Done (engineering), art style guide pending |
 | M1 Core game rules                 | ✅ Done                                        |
-| M2 Auth & wallet                   | ⏳ Next                                        |
-| M3 Single-room MVP                 | —                                              |
+| M2 Auth & wallet                   | ✅ Done (pending review & commit)              |
+| M3 Single-room MVP                 | ⏳ Next                                        |
 | M4 Lobby & spectators              | —                                              |
 | M5 Private rooms                   | —                                              |
 | M6 Heritage art, sound & Nepali UI | —                                              |
@@ -62,12 +62,39 @@ Branch: `feat/m1-game-rules`. All code in `packages/game-rules/src/` (pure funct
 - 1,000,000 dice within ±0.5 % of 1/6 per face ✅; player EV exactly −6469/46656 ≈ −13.87 % ✅
 - Exposure never lets the bank go negative: matches brute force; `settleRound` throws if it ever would ✅
 
+## M2 — Auth & wallet
+
+Branch: `feat/m2-auth-wallet`.
+
+- [x] Schema + migrations: users, auth_identities, refresh_tokens, otp_codes, accounts, transactions, ledger_entries, bonuses (`0001_auth_wallet.sql`); seed system accounts + settings (`0002_seed_settings.sql`) — `packages/db/src/schema/{users,ledger,bonuses,all}.ts`, `packages/db/src/{ids,database,testing}.ts` (created), `packages/db/src/{client.ts,schema/platformSettings.ts}` (modified)
+- [x] Double-entry ledger: `postTransaction` (balanced, idempotent, row locks in id order, overdraft → `INSUFFICIENT_BALANCE`), accounts, history paging, reconciliation — `packages/ledger/src/{accounts,postTransaction,history,reconcile,pgError,systemAccounts}.ts`, `ledger.test.ts` (created/modified)
+- [x] Phone OTP sign-in with limits, sign-up bonus 5,500 in one DB transaction, Google sign-in (off until a client ID is set) — `apps/api/src/services/authService.ts`, `smsService.ts`, `repositories/{otp,user,bonus}Repository.ts` (created)
+- [x] Access JWT (15 min) + rotating refresh cookie with reuse detection — `apps/api/src/services/tokenService.ts`, `repositories/refreshTokenRepository.ts`, `lib/authCookie.ts` (created)
+- [x] Wallet: balance, history (cursor), daily bonus 10 once per Kathmandu day — `apps/api/src/services/walletService.ts`, `utils/nepalTime.ts` (created)
+- [x] Platform settings from DB with 1-min cache — `apps/api/src/services/settingsService.ts`, `repositories/settingsRepository.ts` (created)
+- [x] tRPC: `auth.*`, `me.*`, `wallet.*`; AppError → correct HTTP status; protected procedures — `apps/api/src/lib/trpc.ts`, `controllers/{auth,me,wallet,app}Router.ts` (created/modified)
+- [x] Reconciliation script — `apps/api/src/scripts/reconcile.ts` (`pnpm --filter @jhandi/api reconcile`)
+- [x] Web: sign-in (phone → code, dev code shown), welcome screen with 5,500 coins, home with balance + daily bonus, wallet history, NE/EN toggle, silent session refresh — `apps/web/src/{lib/{authStore,session,i18n,errors}.ts,components/*,pages/*,hooks/*,utils/format.ts}` (created/modified); M0 status page moved to `/status`
+- [x] Tests on in-process Postgres (PGlite): ledger 10, API flows 13 — `apps/api/vitest.config.ts`, `apps/api/src/test/*`, `apps/api/src/services/accountFlows.test.ts`
+- [x] Docs — `docs/api-protocol.md` (auth rules §2.0), `docs/database.md` (otp_codes, reconciliation)
+
+**Exit criteria check (2026-10-20, Supabase Mumbai):**
+
+- New user signs in → exactly 5,500 coins ✅; signing in again (and two simultaneous sign-ups) never pays twice ✅
+- Daily bonus once per Kathmandu day (second claim → 409 `ALREADY_CLAIMED`) ✅
+- Reconciliation: `ok: true`, 0 unbalanced, total 0, 0 drifted ✅
+- Refresh rotation and logout ✅
+- Web screens not yet clicked through in a browser by a person ⏳
+
 ## Tech debt
 
-| Item                                                                            | Proper fix                                        | When                    |
-| ------------------------------------------------------------------------------- | ------------------------------------------------- | ----------------------- |
-| Web bundle 737 kB (225 kB gzip) on a status page                                | Code-split routes; check what pulls in large deps | M6 (performance budget) |
-| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm) | Inject version at build time (tsup `define`)      | M8 deploy               |
+| Item                                                                                                       | Proper fix                                           | When                    |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------- |
+| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked) | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS) | Before beta (M8)        |
+| Per-IP rate limits are in process memory                                                                   | Move to Redis                                        | M4 (when Redis arrives) |
+| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                          | Create an OAuth client in Google Cloud               | When wanted             |
+| Web bundle 823 kB (251 kB gzip)                                                                            | Code-split routes; check what pulls in large deps    | M6 (performance budget) |
+| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                            | Inject version at build time (tsup `define`)         | M8 deploy               |
 
 ## Files touched (all milestones)
 

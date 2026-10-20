@@ -8,6 +8,20 @@
       "when": 1792502762354,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792506601153,
+      "tag": "0001_auth_wallet",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792506601458,
+      "tag": "0002_seed_settings",
+      "breakpoints": true
     }
   ]
 }

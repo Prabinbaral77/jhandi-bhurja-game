@@ -1,16 +1,59 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useState } from 'react'
-import HomePage from '@/pages/HomePage'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
+import Layout from '@/components/Layout'
+import RequireAuth from '@/components/RequireAuth'
+import { useBootstrapSession } from '@/hooks/useBootstrapSession'
 import { createApiClient, TRPCProvider } from '@/lib/trpc'
+import HomePage from '@/pages/HomePage'
+import SignInPage from '@/pages/SignInPage'
+import StatusPage from '@/pages/StatusPage'
+import WalletPage from '@/pages/WalletPage'
+import WelcomePage from '@/pages/WelcomePage'
 
 export default function App() {
-  const [queryClient] = useState(() => new QueryClient())
+  const [queryClient] = useState(
+    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 10_000 } } }),
+  )
   const [trpcClient] = useState(createApiClient)
+  useBootstrapSession()
 
   return (
     <QueryClientProvider client={queryClient}>
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        <HomePage />
+        <BrowserRouter>
+          <Layout>
+            <Routes>
+              <Route path="/signin" element={<SignInPage />} />
+              <Route path="/status" element={<StatusPage />} />
+              <Route
+                path="/welcome"
+                element={
+                  <RequireAuth>
+                    <WelcomePage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/wallet"
+                element={
+                  <RequireAuth>
+                    <WalletPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <RequireAuth>
+                    <HomePage />
+                  </RequireAuth>
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
       </TRPCProvider>
     </QueryClientProvider>
   )

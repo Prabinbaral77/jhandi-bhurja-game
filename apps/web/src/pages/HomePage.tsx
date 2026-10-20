@@ -1,35 +1,33 @@
 import { useQuery } from '@tanstack/react-query'
-import StatusCard from '@/components/StatusCard'
-import { useGameServerPing } from '@/hooks/useGameServerPing'
+import Button from '@/components/Button'
+import CoinAmount from '@/components/CoinAmount'
+import DailyBonusCard from '@/components/DailyBonusCard'
+import { useT } from '@/lib/i18n'
 import { useTRPC } from '@/lib/trpc'
 
 export default function HomePage() {
+  const t = useT()
   const trpc = useTRPC()
-  const health = useQuery({ ...trpc.health.check.queryOptions(), refetchInterval: 5_000 })
-  const ping = useGameServerPing()
-
-  const apiTone = health.isPending ? 'pending' : health.data?.ok ? 'ok' : 'error'
-  const apiLines = health.data
-    ? Object.entries(health.data.dependencies).map(([name, state]) => `${name}: ${state}`)
-    : [health.error?.message ?? 'Checking…']
-
-  const gameTone =
-    ping.state === 'connected' ? 'ok' : ping.state === 'connecting' ? 'pending' : 'error'
-  const gameLines =
-    ping.state === 'connected'
-      ? [`WebSocket connected`, `Round trip: ${ping.roundTripMs ?? '…'} ms`]
-      : ping.state === 'error'
-        ? [ping.message]
-        : ['Connecting…']
+  const wallet = useQuery(trpc.wallet.get.queryOptions())
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
-      <header className="text-center">
-        <h1 className="text-4xl font-bold text-marigold">झण्डी बुर्जा</h1>
-        <p className="mt-1 text-cream/70">Dashain multiplayer — dev setup (M0)</p>
-      </header>
-      <StatusCard title="API" tone={apiTone} lines={apiLines} />
-      <StatusCard title="Game server" tone={gameTone} lines={gameLines} />
-    </main>
+    <div className="flex flex-col gap-4">
+      <section className="rounded-2xl bg-brick/30 p-6">
+        <p className="text-sm text-cream/70">{t('balance')}</p>
+        {wallet.data && (
+          <CoinAmount amount={wallet.data.balance} className="text-4xl font-bold text-marigold" />
+        )}
+      </section>
+      <DailyBonusCard />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {/* Lobby and hosting arrive in M3/M4. */}
+        <Button variant="secondary" disabled title={t('comingSoon')}>
+          {t('welcomePlay')} · {t('comingSoon')}
+        </Button>
+        <Button variant="secondary" disabled title={t('comingSoon')}>
+          {t('welcomeHost')} · {t('comingSoon')}
+        </Button>
+      </div>
+    </div>
   )
 }

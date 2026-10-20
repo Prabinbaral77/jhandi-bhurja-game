@@ -1,8 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import * as platformSettings from '#schema/platformSettings'
-
-const schema = { ...platformSettings }
+import { schema } from '#schema/all'
 
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
 
@@ -23,5 +21,3 @@ export const createDb = ({ databaseUrl, poolMax }: DbOptions) => {
   })
   return { db: drizzle(sql, { schema }), sql }
 }
-
-export type Database = ReturnType<typeof createDb>['db']

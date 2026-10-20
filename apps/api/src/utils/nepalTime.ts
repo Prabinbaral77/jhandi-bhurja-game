@@ -1,0 +1,13 @@
+// Nepal is UTC+5:45 all year (no daylight saving).
+const NEPAL_OFFSET_MS = (5 * 60 + 45) * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// YYYY-MM-DD of the calendar day in Kathmandu.
+export const kathmanduDate = (now: Date): string =>
+  new Date(now.getTime() + NEPAL_OFFSET_MS).toISOString().slice(0, 10)
+
+// Epoch ms of the next midnight in Kathmandu.
+export const nextKathmanduMidnight = (now: Date): number => {
+  const local = now.getTime() + NEPAL_OFFSET_MS
+  return Math.floor(local / DAY_MS) * DAY_MS + DAY_MS - NEPAL_OFFSET_MS
+}

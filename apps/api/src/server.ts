@@ -1,4 +1,5 @@
 import { createExpressMiddleware } from '@trpc/server/adapters/express'
+import cookieParser from 'cookie-parser'
 import cors from 'cors'
 import express from 'express'
 import { appRouter } from '#controllers/appRouter'
@@ -10,6 +11,9 @@ import { createContext } from '#lib/trpc'
 
 const app = express()
 app.disable('x-powered-by')
+// Behind one reverse proxy in production; makes req.ip the real client IP for rate limits.
+app.set('trust proxy', env.NODE_ENV === 'production' ? 1 : false)
+app.use(cookieParser())
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }))
 
 app.use(

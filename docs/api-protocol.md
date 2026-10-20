@@ -41,27 +41,35 @@ Every error, from tRPC or WebSocket:
 
 ## 2. tRPC procedures (`apps/api`)
 
-| Procedure                | Type     | Input                                        | Output                                               |
-| ------------------------ | -------- | -------------------------------------------- | ---------------------------------------------------- |
-| `health.check`           | query    | —                                            | `{ ok, db, redis, version }`                         |
-| `auth.requestOtp`        | mutation | `{ phone }` (Nepal `+977` format)            | `{ expiresInSec }`                                   |
-| `auth.verifyOtp`         | mutation | `{ phone, otp }`                             | `{ accessToken, user, isNewUser }`                   |
-| `auth.google`            | mutation | `{ idToken }`                                | `{ accessToken, user, isNewUser }`                   |
-| `auth.refresh`           | mutation | — (cookie)                                   | `{ accessToken }`                                    |
-| `auth.logout`            | mutation | —                                            | `{ ok }`                                             |
-| `me.get`                 | query    | —                                            | `User`                                               |
-| `me.update`              | mutation | `{ displayName?, avatarUrl? }`               | `User`                                               |
-| `wallet.get`             | query    | —                                            | `{ balance, dailyBonusAvailable, nextDailyBonusAt }` |
-| `wallet.transactions`    | query    | cursor input                                 | page of `WalletTx`                                   |
-| `wallet.claimDailyBonus` | mutation | `{ idempotencyKey }`                         | `{ amount: 10, balance }`                            |
-| `rooms.create`           | mutation | `CreateRoomInput`                            | `{ roomId, inviteLink?, roomCode? }`                 |
-| `rooms.listPublic`       | query    | cursor input + `{ sort?, minBet?, maxBet? }` | page of `RoomSummary`                                |
-| `invite.preview`         | query    | `{ inviteToken }`                            | `RoomPreview` + `joinTicket`                         |
-| `invite.joinByCode`      | mutation | `{ roomCode }`                               | `RoomPreview` + `joinTicket`                         |
-| `invite.reset`           | mutation | `{ roomId }` (host)                          | `{ inviteLink, roomCode }`                           |
-| `rounds.verify`          | query    | `{ roundId }`                                | `{ seedHash, serverSeed, dice, valid }`              |
+| Procedure                | Type     | Input                                        | Output                                                                                                            |
+| ------------------------ | -------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `health.check`           | query    | —                                            | `{ ok, service, version, dependencies: { postgres, redis: up \| down \| disabled } }`                             |
+| `auth.requestOtp`        | mutation | `{ phone }` (`98XXXXXXXX`, `+977…` accepted) | `{ expiresInSec: 300, resendAfterSec: 60, devCode? }` — `devCode` only with `SMS_PROVIDER=console` in development |
+| `auth.verifyOtp`         | mutation | `{ phone, code }` (6 digits)                 | `{ accessToken, accessTokenExpiresAt, user, isNewUser, signupBonus }` + sets refresh cookie                       |
+| `auth.config`            | query    | —                                            | `{ googleEnabled }`                                                                                               |
+| `auth.google`            | mutation | `{ idToken }`                                | `{ accessToken, user, isNewUser }`                                                                                |
+| `auth.refresh`           | mutation | — (cookie)                                   | `{ accessToken }`                                                                                                 |
+| `auth.logout`            | mutation | — (cookie)                                   | `{ ok }`, revokes the refresh token and clears the cookie                                                         |
+| `me.get`                 | query    | —                                            | `User`                                                                                                            |
+| `me.update`              | mutation | `{ displayName?, avatarUrl? }`               | `User`                                                                                                            |
+| `wallet.get`             | query    | —                                            | `{ balance, dailyBonusAvailable, nextDailyBonusAt }`                                                              |
+| `wallet.transactions`    | query    | cursor input                                 | page of `WalletTx`                                                                                                |
+| `wallet.claimDailyBonus` | mutation | — (idempotent per Kathmandu day)             | `{ amount: 10, balance }`; second claim → `ALREADY_CLAIMED` (409)                                                 |
+| `rooms.create`           | mutation | `CreateRoomInput`                            | `{ roomId, inviteLink?, roomCode? }`                                                                              |
+| `rooms.listPublic`       | query    | cursor input + `{ sort?, minBet?, maxBet? }` | page of `RoomSummary`                                                                                             |
+| `invite.preview`         | query    | `{ inviteToken }`                            | `RoomPreview` + `joinTicket`                                                                                      |
+| `invite.joinByCode`      | mutation | `{ roomCode }`                               | `RoomPreview` + `joinTicket`                                                                                      |
+| `invite.reset`           | mutation | `{ roomId }` (host)                          | `{ inviteLink, roomCode }`                                                                                        |
+| `rounds.verify`          | query    | `{ roundId }`                                | `{ seedHash, serverSeed, dice, valid }`                                                                           |
 
-Sign-up bonus (5,500) has no procedure: it is credited inside `auth.verifyOtp` / `auth.google` when `isNewUser` is true.
+Sign-up bonus (5,500) has no procedure: it is credited inside `auth.verifyOtp` / `auth.google` when `isNewUser` is true, in the same DB transaction that creates the user.
+
+### 2.0 Auth rules (implemented in M2)
+
+- **OTP:** 6 digits, valid 5 min, stored only as an HMAC hash. Resend after 60 s; max 3 codes per phone per 15 min; 5 wrong attempts lock the code; a code works once. Per-IP limits: 10 code requests / hour, 30 verify attempts / 15 min.
+- **Access token:** HS256 JWT, 15 min, kept in memory by the web app. Checked statelessly; account status is re-checked on refresh and on coin-moving actions.
+- **Refresh token:** random 256-bit, stored hashed, `httpOnly` cookie `jb_rt` on path `/v1/trpc`, 30 days. Rotated on every refresh. Replaying an already-used token more than 10 s later revokes all of that user's refresh tokens (theft signal); within 10 s it is just rejected (two tabs racing).
+- **Phone and Google accounts are separate users** in v1 (no account linking).
 
 ### 2.1 Key shapes
 
