@@ -9,10 +9,6 @@ export const randomToken = (): string => randomBytes(32).toString('base64url')
 
 export const randomOtp = (): string => randomInt(0, 1_000_000).toString().padStart(6, '0')
 
-// Separate keys per purpose, derived from the one AUTH_SECRET.
-export const deriveKey = (purpose: string): Uint8Array =>
-  new Uint8Array(createHmac('sha256', env.AUTH_SECRET).update(`key:${purpose}`).digest())
-
 export const safeEqualHex = (a: string, b: string): boolean => {
   const left = Buffer.from(a, 'hex')
   const right = Buffer.from(b, 'hex')

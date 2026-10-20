@@ -6,9 +6,9 @@
 | ---------------------------------- | ---------------------------------------------- |
 | M0 Project setup                   | ✅ Done (engineering), art style guide pending |
 | M1 Core game rules                 | ✅ Done                                        |
-| M2 Auth & wallet                   | ✅ Done (pending review & commit)              |
-| M3 Single-room MVP                 | ⏳ Next                                        |
-| M4 Lobby & spectators              | —                                              |
+| M2 Auth & wallet                   | ✅ Done                                        |
+| M3 Single-room MVP                 | ✅ Done (pending review & commit)              |
+| M4 Lobby & spectators              | ⏳ Next                                        |
 | M5 Private rooms                   | —                                              |
 | M6 Heritage art, sound & Nepali UI | —                                              |
 | M7 Hardening & admin               | —                                              |
@@ -86,15 +86,39 @@ Branch: `feat/m2-auth-wallet`.
 - Refresh rotation and logout ✅
 - Web screens not yet clicked through in a browser by a person ⏳
 
+## M3 — Single-room MVP
+
+Branch: `feat/m3-single-room`.
+
+- [x] Schema: rooms (one active per host), room_members, rounds, bets — `packages/db/src/schema/rooms.ts`, `migrations/0003_rooms_rounds_bets.sql` (created)
+- [x] Shared packages: `@jhandi/auth` (access tokens for API + game server), platform settings reader in `@jhandi/db/settings` — `packages/auth/*`, `packages/db/src/settings.ts` (created); API refactored to use them
+- [x] Ledger: all balance changes of a transaction in one locked, ordered statement; new balances returned (saves a query per bet) — `packages/ledger/src/postTransaction.ts` (modified)
+- [x] API: `rooms.create` (deposit ≥ 5,000 → bank), `rooms.list`, `rooms.mine` — `apps/api/src/{controllers/roomsRouter,services/roomService,repositories/roomRepository}.ts` (created)
+- [x] Game server: `JhandiRoom` with OPEN → BETTING → LOCKED → ROLLING → SETTLING → RESULT → (auto next / PAUSED / CLOSED); serial job queue per room; bets/cancel in escrow; one-transaction settlement with 2 % fee; commit–reveal seed; host start / roll now / pause / top-up / close; host-away pause and auto-close after 2 min; reconnect within 30 s; chat + reactions — `apps/game-server/src/{controllers/jhandiRoom,services/roundService,repositories/*,schemas/roomState,utils/serialQueue}.ts` (created)
+- [x] Crash recovery: open rounds are voided and refunded on start — `voidUnfinishedRounds`
+- [x] Colyseus wiring: depend on `@colyseus/core` + `@colyseus/ws-transport` directly and fail fast if two copies of core are installed — `apps/game-server/src/utils/assertSingleColyseusCore.ts` (created)
+- [x] Web: rooms list, host a room, room page (board, chips, dice, result with in-browser fairness check, host controls, members, activity, chat, reactions), NE/EN text — `apps/web/src/{pages/{Rooms,CreateRoom,Room}Page,components/room/*,hooks/useJhandiRoom,lib/roomStore}.ts(x)` (created); placeholder glyphs until M6 art
+- [x] Tests: game-server coin flows on PGlite (6); end-to-end smoke (`pnpm --filter @jhandi/e2e smoke [rounds]`) and crash test (`… crash`) — `tests/e2e/*` (created)
+
+**Exit criteria check (2026-10-20, dev machine in Nepal → Supabase Mumbai):**
+
+- Host + players on separate connections, 10 rounds end to end with every wallet, bank, fee and fairness proof checked ✅; 50-round run also clean, ledger reconciles ✅
+- Game server killed with SIGKILL mid-round → on restart the round is voided and the 300-coin bet refunded ✅
+- Bet acknowledgement < 150 ms on a local network ⏳ not measurable here: from Nepal each DB query to Mumbai is ~100 ms, a bet ≈ 0.7 s and a settlement ≈ 2–3 s. Needs the servers hosted next to the DB (M8).
+- Web room screens not yet clicked through in a browser by a person ⏳
+
 ## Tech debt
 
-| Item                                                                                                       | Proper fix                                           | When                    |
-| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- | ----------------------- |
-| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked) | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS) | Before beta (M8)        |
-| Per-IP rate limits are in process memory                                                                   | Move to Redis                                        | M4 (when Redis arrives) |
-| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                          | Create an OAuth client in Google Cloud               | When wanted             |
-| Web bundle 823 kB (251 kB gzip)                                                                            | Code-split routes; check what pulls in large deps    | M6 (performance budget) |
-| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                            | Inject version at build time (tsup `define`)         | M8 deploy               |
+| Item                                                                                                                                                  | Proper fix                                                                                   | When                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------- |
+| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                            | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                                         | Before beta (M8)        |
+| Per-IP rate limits are in process memory                                                                                                              | Move to Redis                                                                                | M4 (when Redis arrives) |
+| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                     | Create an OAuth client in Google Cloud                                                       | When wanted             |
+| On start, a game server voids **every** unfinished round, including rounds running on another game server (seen in dev when two servers share one DB) | Track which node owns each room (Redis presence, M4) and only void rooms whose owner is gone | M4                      |
+| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                  | Host api/game-server in the DB region; consider a local Postgres for dev                     | M8 (hosting)            |
+| Board uses emoji placeholders; dice animation is a CSS bounce                                                                                         | Heritage art + PixiJS animation                                                              | M6                      |
+| Web bundle 866 kB (263 kB gzip)                                                                                                                       | Code-split routes; check what pulls in large deps                                            | M6 (performance budget) |
+| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                       | Inject version at build time (tsup `define`)                                                 | M8 deploy               |
 
 ## Files touched (all milestones)
 

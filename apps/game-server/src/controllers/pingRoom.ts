@@ -1,4 +1,4 @@
-import { Room, type Client } from 'colyseus'
+import { Room, type Client } from '@colyseus/core'
 import { z } from 'zod'
 import { logger } from '#lib/logger'
 import { onValidatedMessage } from '#utils/onValidatedMessage'

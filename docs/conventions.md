@@ -70,7 +70,13 @@ Controller → service → repository. No skipping layers. Services never touch 
 - API data: tRPC + TanStack Query. Live room state: Zustand store fed by Colyseus.
 - All user-facing text through i18n keys (Nepali default, English).
 
-## 9. Tech debt
+## 9. Colyseus
+
+- The game server imports `@colyseus/core` and `@colyseus/ws-transport` directly (not the `colyseus` meta-package). Colyseus packages have circular peer dependencies; pnpm can otherwise install two copies of core and every join fails with "seat reservation expired". `assertSingleColyseusCore()` checks this at start.
+- State schemas use `schema()` + `t.*` (no decorators).
+- Room jobs that touch coins go through the room's serial queue (`createSerialQueue`).
+
+## 10. Tech debt
 
 When a quick fix is chosen over the proper one, leave:
 

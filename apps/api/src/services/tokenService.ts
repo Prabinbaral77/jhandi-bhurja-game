@@ -1,5 +1,6 @@
+import { InvalidAccessTokenError, type AccessToken } from '@jhandi/auth/accessToken'
 import { AppError } from '@jhandi/protocol/appError'
-import { jwtVerify, SignJWT } from 'jose'
+import { accessTokens } from '#lib/accessTokens'
 import { env } from '#lib/env'
 import {
   findRefreshToken,
@@ -7,40 +8,24 @@ import {
   revokeAllRefreshTokens,
   revokeRefreshToken,
 } from '#repositories/refreshTokenRepository'
-import { deriveKey, hashSecret, randomToken } from '#utils/crypto'
+import { hashSecret, randomToken } from '#utils/crypto'
 
-const ACCESS_KEY = deriveKey('access-token')
-const ISSUER = 'jhandi-api'
-const AUDIENCE = 'jhandi-web'
 // A just-rotated token arriving again within this window is a double-submit (e.g. two tabs),
 // not theft, so we don't log the user out everywhere.
 const REUSE_GRACE_MS = 10_000
 
-export interface AccessToken {
-  accessToken: string
-  accessTokenExpiresAt: number
-}
+export type { AccessToken }
 
-export const issueAccessToken = async (userId: string): Promise<AccessToken> => {
-  const accessTokenExpiresAt = Date.now() + env.ACCESS_TOKEN_TTL_SEC * 1000
-  const accessToken = await new SignJWT({})
-    .setProtectedHeader({ alg: 'HS256' })
-    .setSubject(userId)
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
-    .setIssuedAt()
-    .setExpirationTime(Math.floor(accessTokenExpiresAt / 1000))
-    .sign(ACCESS_KEY)
-  return { accessToken, accessTokenExpiresAt }
-}
+export const issueAccessToken = (userId: string): Promise<AccessToken> => accessTokens.issue(userId)
 
 export const verifyAccessToken = async (token: string): Promise<string> => {
   try {
-    const { payload } = await jwtVerify(token, ACCESS_KEY, { issuer: ISSUER, audience: AUDIENCE })
-    if (!payload.sub) throw new Error('missing sub')
-    return payload.sub
-  } catch {
-    throw new AppError('UNAUTHENTICATED', 'Session expired, please sign in again')
+    return await accessTokens.verify(token)
+  } catch (error) {
+    if (error instanceof InvalidAccessTokenError) {
+      throw new AppError('UNAUTHENTICATED', 'Session expired, please sign in again')
+    }
+    throw error
   }
 }
 

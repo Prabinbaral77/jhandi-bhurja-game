@@ -55,6 +55,8 @@ describe('ledger', () => {
     const before = await getBalance(db, SYSTEM_ACCOUNT_IDS.BONUS)
     const result = await grant(account, 5_500)
     expect(result.status).toBe('posted')
+    // New balances come back with the result, so callers need no extra query.
+    if (result.status === 'posted') expect(result.balances.get(account)).toBe(5_500)
     expect(await getBalance(db, account)).toBe(5_500)
     expect(await getBalance(db, SYSTEM_ACCOUNT_IDS.BONUS)).toBe(before - 5_500)
   })

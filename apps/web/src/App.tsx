@@ -5,7 +5,10 @@ import Layout from '@/components/Layout'
 import RequireAuth from '@/components/RequireAuth'
 import { useBootstrapSession } from '@/hooks/useBootstrapSession'
 import { createApiClient, TRPCProvider } from '@/lib/trpc'
+import CreateRoomPage from '@/pages/CreateRoomPage'
 import HomePage from '@/pages/HomePage'
+import RoomPage from '@/pages/RoomPage'
+import RoomsPage from '@/pages/RoomsPage'
 import SignInPage from '@/pages/SignInPage'
 import StatusPage from '@/pages/StatusPage'
 import WalletPage from '@/pages/WalletPage'
@@ -39,6 +42,30 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <WalletPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/rooms"
+                element={
+                  <RequireAuth>
+                    <RoomsPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/host/new"
+                element={
+                  <RequireAuth>
+                    <CreateRoomPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/room/:roomId"
+                element={
+                  <RequireAuth>
+                    <RoomPage />
                   </RequireAuth>
                 }
               />

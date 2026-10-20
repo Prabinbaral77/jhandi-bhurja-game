@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@colyseus/sdk": "^0.18.5",
+    "@jhandi/game-rules": "workspace:*",
+    "@jhandi/protocol": "workspace:*",
     "@jhandi/ui-theme": "workspace:*",
     "@tanstack/react-query": "^5.104.5",
     "@trpc/client": "^11.19.0",
@@ -24,7 +26,6 @@
   },
   "devDependencies": {
     "@jhandi/api": "workspace:*",
-    "@jhandi/protocol": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

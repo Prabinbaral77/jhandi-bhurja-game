@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
-import Button from '@/components/Button'
+import { Link } from 'react-router'
 import CoinAmount from '@/components/CoinAmount'
 import DailyBonusCard from '@/components/DailyBonusCard'
 import { useT } from '@/lib/i18n'
 import { useTRPC } from '@/lib/trpc'
 
+const cardClass = 'flex flex-col gap-1 rounded-xl border border-cream/15 p-4 hover:border-marigold'
+
 export default function HomePage() {
   const t = useT()
   const trpc = useTRPC()
   const wallet = useQuery(trpc.wallet.get.queryOptions())
+  const mine = useQuery(trpc.rooms.mine.queryOptions())
 
   return (
     <div className="flex flex-col gap-4">
@@ -20,13 +23,18 @@ export default function HomePage() {
       </section>
       <DailyBonusCard />
       <div className="grid gap-3 sm:grid-cols-2">
-        {/* Lobby and hosting arrive in M3/M4. */}
-        <Button variant="secondary" disabled title={t('comingSoon')}>
-          {t('welcomePlay')} · {t('comingSoon')}
-        </Button>
-        <Button variant="secondary" disabled title={t('comingSoon')}>
-          {t('welcomeHost')} · {t('comingSoon')}
-        </Button>
+        <Link to="/rooms" className={cardClass}>
+          <span className="text-lg font-semibold">{t('welcomePlay')}</span>
+          <span className="text-sm text-cream/70">{t('welcomePlayHint')}</span>
+        </Link>
+        <Link to={mine.data ? `/room/${mine.data.roomId}` : '/host/new'} className={cardClass}>
+          <span className="text-lg font-semibold">
+            {mine.data ? t('goToMyRoom') : t('welcomeHost')}
+          </span>
+          <span className="text-sm text-cream/70">
+            {mine.data ? mine.data.name : t('welcomeHostHint')}
+          </span>
+        </Link>
       </div>
     </div>
   )

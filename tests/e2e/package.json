@@ -1,0 +1,16 @@
+{
+  "name": "@jhandi/e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "tsx --env-file=../../.env smoke.ts",
+    "typecheck": "tsc --noEmit",
+    "crash": "tsx --env-file=../../.env crash.ts"
+  },
+  "devDependencies": {
+    "@colyseus/sdk": "^0.18.5",
+    "@jhandi/game-rules": "workspace:*",
+    "@jhandi/protocol": "workspace:*",
+    "tsx": "^4.23.15"
+  }
+}

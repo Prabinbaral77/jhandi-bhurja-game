@@ -41,26 +41,27 @@ Every error, from tRPC or WebSocket:
 
 ## 2. tRPC procedures (`apps/api`)
 
-| Procedure                | Type     | Input                                        | Output                                                                                                            |
-| ------------------------ | -------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `health.check`           | query    | —                                            | `{ ok, service, version, dependencies: { postgres, redis: up \| down \| disabled } }`                             |
-| `auth.requestOtp`        | mutation | `{ phone }` (`98XXXXXXXX`, `+977…` accepted) | `{ expiresInSec: 300, resendAfterSec: 60, devCode? }` — `devCode` only with `SMS_PROVIDER=console` in development |
-| `auth.verifyOtp`         | mutation | `{ phone, code }` (6 digits)                 | `{ accessToken, accessTokenExpiresAt, user, isNewUser, signupBonus }` + sets refresh cookie                       |
-| `auth.config`            | query    | —                                            | `{ googleEnabled }`                                                                                               |
-| `auth.google`            | mutation | `{ idToken }`                                | `{ accessToken, user, isNewUser }`                                                                                |
-| `auth.refresh`           | mutation | — (cookie)                                   | `{ accessToken }`                                                                                                 |
-| `auth.logout`            | mutation | — (cookie)                                   | `{ ok }`, revokes the refresh token and clears the cookie                                                         |
-| `me.get`                 | query    | —                                            | `User`                                                                                                            |
-| `me.update`              | mutation | `{ displayName?, avatarUrl? }`               | `User`                                                                                                            |
-| `wallet.get`             | query    | —                                            | `{ balance, dailyBonusAvailable, nextDailyBonusAt }`                                                              |
-| `wallet.transactions`    | query    | cursor input                                 | page of `WalletTx`                                                                                                |
-| `wallet.claimDailyBonus` | mutation | — (idempotent per Kathmandu day)             | `{ amount: 10, balance }`; second claim → `ALREADY_CLAIMED` (409)                                                 |
-| `rooms.create`           | mutation | `CreateRoomInput`                            | `{ roomId, inviteLink?, roomCode? }`                                                                              |
-| `rooms.listPublic`       | query    | cursor input + `{ sort?, minBet?, maxBet? }` | page of `RoomSummary`                                                                                             |
-| `invite.preview`         | query    | `{ inviteToken }`                            | `RoomPreview` + `joinTicket`                                                                                      |
-| `invite.joinByCode`      | mutation | `{ roomCode }`                               | `RoomPreview` + `joinTicket`                                                                                      |
-| `invite.reset`           | mutation | `{ roomId }` (host)                          | `{ inviteLink, roomCode }`                                                                                        |
-| `rounds.verify`          | query    | `{ roundId }`                                | `{ seedHash, serverSeed, dice, valid }`                                                                           |
+| Procedure                | Type     | Input                                        | Output                                                                                                                                |
+| ------------------------ | -------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `health.check`           | query    | —                                            | `{ ok, service, version, dependencies: { postgres, redis: up \| down \| disabled } }`                                                 |
+| `auth.requestOtp`        | mutation | `{ phone }` (`98XXXXXXXX`, `+977…` accepted) | `{ expiresInSec: 300, resendAfterSec: 60, devCode? }` — `devCode` only with `SMS_PROVIDER=console` in development                     |
+| `auth.verifyOtp`         | mutation | `{ phone, code }` (6 digits)                 | `{ accessToken, accessTokenExpiresAt, user, isNewUser, signupBonus }` + sets refresh cookie                                           |
+| `auth.config`            | query    | —                                            | `{ googleEnabled }`                                                                                                                   |
+| `auth.google`            | mutation | `{ idToken }`                                | `{ accessToken, user, isNewUser }`                                                                                                    |
+| `auth.refresh`           | mutation | — (cookie)                                   | `{ accessToken }`                                                                                                                     |
+| `auth.logout`            | mutation | — (cookie)                                   | `{ ok }`, revokes the refresh token and clears the cookie                                                                             |
+| `me.get`                 | query    | —                                            | `User`                                                                                                                                |
+| `me.update`              | mutation | `{ displayName?, avatarUrl? }`               | `User`                                                                                                                                |
+| `wallet.get`             | query    | —                                            | `{ balance, dailyBonusAvailable, nextDailyBonusAt }`                                                                                  |
+| `wallet.transactions`    | query    | cursor input                                 | page of `WalletTx`                                                                                                                    |
+| `wallet.claimDailyBonus` | mutation | — (idempotent per Kathmandu day)             | `{ amount: 10, balance }`; second claim → `ALREADY_CLAIMED` (409)                                                                     |
+| `rooms.create`           | mutation | `{ name, deposit ≥ 5,000, limits? }`         | `{ roomId }` — deposit moves from wallet to the room bank; one active room per host (M5 adds private rooms: `inviteLink`, `roomCode`) |
+| `rooms.list`             | query    | —                                            | open public rooms (M3: plain list, newest first; M4 adds cursor, sort, live counts)                                                   |
+| `rooms.mine`             | query    | —                                            | the caller's active room as host, or `null`                                                                                           |
+| `invite.preview`         | query    | `{ inviteToken }`                            | `RoomPreview` + `joinTicket`                                                                                                          |
+| `invite.joinByCode`      | mutation | `{ roomCode }`                               | `RoomPreview` + `joinTicket`                                                                                                          |
+| `invite.reset`           | mutation | `{ roomId }` (host)                          | `{ inviteLink, roomCode }`                                                                                                            |
+| `rounds.verify`          | query    | `{ roundId }`                                | `{ seedHash, serverSeed, dice, valid }`                                                                                               |
 
 Sign-up bonus (5,500) has no procedure: it is credited inside `auth.verifyOtp` / `auth.google` when `isNewUser` is true, in the same DB transaction that creates the user.
 
@@ -105,7 +106,7 @@ RoomSummary = {
 ### 3.1 Connecting
 
 - Lobby: join room type `lobby` (read-only) with the access token → receives `RoomSummary` diffs for public rooms.
-- Game room: `joinById(roomId, { accessToken, joinTicket? })`. Users enter as **spectators**; send `join_as_player` to play.
+- Game room: `joinOrCreate('jhandi', { dbRoomId, accessToken, joinTicket? })`. The room type is filtered by `dbRoomId`, so everyone with the same DB room id lands in the same Colyseus room; the first join (re)creates it from the database. Users enter as **spectators**; send `join_as_player` to play.
 - Reconnect: Colyseus reconnection token, valid 30 s.
 
 ### 3.2 Synced state (Colyseus schema)

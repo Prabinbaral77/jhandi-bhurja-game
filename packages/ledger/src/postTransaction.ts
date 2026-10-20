@@ -2,7 +2,7 @@ import type { Transaction } from '@jhandi/db/database'
 import { newId } from '@jhandi/db/ids'
 import { accounts, ledgerEntries, transactions } from '@jhandi/db/schema/ledger'
 import { AppError } from '@jhandi/protocol/appError'
-import { eq, sql } from 'drizzle-orm'
+import { asc, eq, inArray, sql } from 'drizzle-orm'
 import { CHECK_VIOLATION, pgErrorCode } from '#pgError'
 
 export type TransactionKind = (typeof transactions.$inferInsert)['kind']
@@ -22,7 +22,9 @@ export interface PostTransactionInput {
 }
 
 export type PostTransactionResult =
-  { status: 'posted'; transactionId: string } | { status: 'duplicate'; transactionId: string }
+  // New balance of every account the transaction touched.
+  | { status: 'posted'; transactionId: string; balances: ReadonlyMap<string, number> }
+  | { status: 'duplicate'; transactionId: string }
 
 const assertBalanced = (entries: readonly LedgerEntryInput[]): void => {
   if (entries.length < 2) throw new Error('A transaction needs at least two entries')
@@ -77,20 +79,44 @@ export const postTransaction = async (
     return { status: 'duplicate', transactionId: existing.id }
   }
 
-  for (const [accountId, amount] of netByAccount(input.entries)) {
+  const net = netByAccount(input.entries)
+  const ids = net.map(([accountId]) => accountId)
+  const balances = new Map<string, number>()
+  if (net.length > 0) {
+    // Lock rows in id order first so concurrent transactions can't deadlock, then apply every
+    // change in one statement (one round trip, however many accounts).
+    await tx
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(inArray(accounts.id, ids))
+      .orderBy(asc(accounts.id))
+      .for('update')
+    const delta = sql.join(
+      [
+        sql`CASE ${accounts.id}`,
+        ...net.map(([accountId, amount]) => sql`WHEN ${accountId}::uuid THEN ${amount}::bigint`),
+        sql`END`,
+      ],
+      sql` `,
+    )
+    let updated
     try {
-      const updated = await tx
+      updated = await tx
         .update(accounts)
-        .set({ balance: sql`${accounts.balance} + ${amount}`, updatedAt: sql`now()` })
-        .where(eq(accounts.id, accountId))
-        .returning({ id: accounts.id })
-      if (updated.length === 0) throw new Error(`Account ${accountId} not found`)
+        .set({ balance: sql`${accounts.balance} + ${delta}`, updatedAt: sql`now()` })
+        .where(inArray(accounts.id, ids))
+        .returning({ id: accounts.id, balance: accounts.balance })
     } catch (error) {
       if (pgErrorCode(error) === CHECK_VIOLATION) {
-        throw new AppError('INSUFFICIENT_BALANCE', 'Not enough coins', { accountId })
+        throw new AppError('INSUFFICIENT_BALANCE', 'Not enough coins')
       }
       throw error
     }
+    if (updated.length !== ids.length) {
+      const missing = ids.filter((id) => !updated.some((row) => row.id === id))
+      throw new Error(`Accounts not found: ${missing.join(', ')}`)
+    }
+    for (const row of updated) balances.set(row.id, row.balance)
   }
 
   await tx.insert(ledgerEntries).values(
@@ -101,5 +127,5 @@ export const postTransaction = async (
     })),
   )
 
-  return { status: 'posted', transactionId: inserted.id }
+  return { status: 'posted', transactionId: inserted.id, balances }
 }

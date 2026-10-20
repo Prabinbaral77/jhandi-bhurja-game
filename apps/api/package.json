@@ -23,7 +23,9 @@
     "@types/express": "^5.0.6"
   },
   "dependencies": {
+    "@jhandi/auth": "workspace:*",
     "@jhandi/db": "workspace:*",
+    "@jhandi/game-rules": "workspace:*",
     "@jhandi/ledger": "workspace:*",
     "@jhandi/protocol": "workspace:*",
     "@trpc/server": "^11.19.0",
