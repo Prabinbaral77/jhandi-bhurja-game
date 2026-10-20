@@ -130,6 +130,19 @@ const ne = {
   'error.BELOW_MIN_DEPOSIT': 'बैंकमा अझै कोइन राख्नुपर्छ।',
   'error.NOT_FOUND': 'भेटिएन।',
   'error.ROOM_CLOSED': 'कोठा बन्द छ।',
+  live: 'लाइभ',
+  volume10m: '१० मिनेटको कारोबार',
+  lastResults: 'अघिल्ला नतिजा',
+  roomIdle: 'अहिले कोही छैन। पहिलो बन्नुहोस्!',
+  sortBy: 'क्रम:',
+  'sort.players': 'धेरै खेलाडी',
+  'sort.volume': 'धेरै कारोबार',
+  'sort.newest': 'नयाँ',
+  'range.all': 'सबै',
+  'range.low': '≤ २०',
+  'range.mid': '२१–१००',
+  'range.high': '> १००',
+  'ticker.win': '{name} ले {room} मा {symbol} ×{k} बाट {n} कोइन जिते',
 } as const
 
 export type MessageKey = keyof typeof ne
@@ -264,6 +277,19 @@ const en: Record<MessageKey, string> = {
   'error.BELOW_MIN_DEPOSIT': 'Put more coins in the bank.',
   'error.NOT_FOUND': 'Not found.',
   'error.ROOM_CLOSED': 'Room is closed.',
+  live: 'live',
+  volume10m: '10-min volume',
+  lastResults: 'Last results',
+  roomIdle: 'Nobody here right now. Be the first!',
+  sortBy: 'Sort:',
+  'sort.players': 'Most players',
+  'sort.volume': 'Most volume',
+  'sort.newest': 'Newest',
+  'range.all': 'All',
+  'range.low': '≤ 20',
+  'range.mid': '21–100',
+  'range.high': '> 100',
+  'ticker.win': '{name} won {n} coins on {symbol} ×{k} in {room}',
 }
 
 export type Language = 'ne' | 'en'

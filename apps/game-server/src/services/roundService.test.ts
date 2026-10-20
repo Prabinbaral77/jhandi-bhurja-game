@@ -201,7 +201,7 @@ describe('round coin flows', () => {
       idempotencyKey: newId(),
     })
 
-    await voidUnfinishedRounds(roomId)
+    await voidUnfinishedRounds(() => Promise.resolve(false), roomId)
     expect(await balanceOf(ram.accountId)).toBe(500)
     expect(await balanceOf(escrowAccountId)).toBe(0)
     const [round] = await db.select().from(rounds).where(eq(rounds.id, roundId))

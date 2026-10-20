@@ -2,17 +2,17 @@
 
 > Updated after every task. Milestones are defined in [milestones.md](milestones.md).
 
-| Milestone                          | Status                                         |
-| ---------------------------------- | ---------------------------------------------- |
-| M0 Project setup                   | ✅ Done (engineering), art style guide pending |
-| M1 Core game rules                 | ✅ Done                                        |
-| M2 Auth & wallet                   | ✅ Done                                        |
-| M3 Single-room MVP                 | ✅ Done (pending review & commit)              |
-| M4 Lobby & spectators              | ⏳ Next                                        |
-| M5 Private rooms                   | —                                              |
-| M6 Heritage art, sound & Nepali UI | —                                              |
-| M7 Hardening & admin               | —                                              |
-| M8 Beta & launch                   | —                                              |
+| Milestone                          | Status                                                                      |
+| ---------------------------------- | --------------------------------------------------------------------------- |
+| M0 Project setup                   | ✅ Done (engineering), art style guide pending                              |
+| M1 Core game rules                 | ✅ Done                                                                     |
+| M2 Auth & wallet                   | ✅ Done                                                                     |
+| M3 Single-room MVP                 | ✅ Done                                                                     |
+| M4 Lobby & spectators              | ✅ Done on one node (pending review & commit); multi-node needs a Redis URL |
+| M5 Private rooms                   | ⏳ Next                                                                     |
+| M6 Heritage art, sound & Nepali UI | —                                                                           |
+| M7 Hardening & admin               | —                                                                           |
+| M8 Beta & launch                   | —                                                                           |
 
 ## M0 — Project setup
 
@@ -107,18 +107,38 @@ Branch: `feat/m3-single-room`.
 - Bet acknowledgement < 150 ms on a local network ⏳ not measurable here: from Nepal each DB query to Mumbai is ~100 ms, a bet ≈ 0.7 s and a settlement ≈ 2–3 s. Needs the servers hosted next to the DB (M8).
 - Web room screens not yet clicked through in a browser by a person ⏳
 
+## M4 — Multi-room lobby & spectators
+
+Branch: `feat/m4-lobby`.
+
+- [x] Room summary as Colyseus metadata (players, spectators, phase, round, bank, last 5 results, 10-min volume), published ≤ 1/s — `apps/game-server/src/controllers/jhandiRoom.ts` (modified); `.enableRealtimeListing()` on the `jhandi` handler
+- [x] Lobby room: Colyseus `LobbyRoom` + sign-in + global big-win ticker (wins ≥ 200) over presence pub/sub — `apps/game-server/src/controllers/lobbyRoom.ts`, `lib/ticker.ts` (created)
+- [x] Redis presence + driver when `REDIS_URL` is set (shared registry and pub/sub across nodes); in-process otherwise — `apps/game-server/src/server.ts`, `lib/env.ts` (modified); `@colyseus/redis-presence`, `@colyseus/redis-driver` added
+- [x] Crash recovery now ownership-aware: on start only rounds of rooms **not** live in the shared registry are voided — `services/roundService.ts`, `lib/roomRegistry.ts` (modified/created)
+- [x] Protocol: `RoomLiveSummary`, `TickerItem`, lobby message names — `packages/protocol/src/lobby.ts` (created)
+- [x] Web lobby: API room list merged with live stream; sort (players / volume / newest), min-bet filter, ticker, last results per room, idle rooms marked — `apps/web/src/{hooks/useLobby.ts,components/lobby/{RoomCard,Ticker}.tsx,pages/RoomsPage.tsx}` (created/modified)
+- [x] API: per-IP OTP limits configurable (`OTP_IP_REQUESTS_PER_HOUR`, `OTP_IP_VERIFIES_PER_15MIN`) so e2e tests can create many users — `apps/api/src/lib/env.ts`, `services/authService.ts` (modified)
+- [x] e2e lobby test — `tests/e2e/lobby.ts` (`pnpm --filter @jhandi/e2e lobby [rooms]`)
+- [ ] Two game-server nodes behind one entry point: needs a Redis URL (e.g. Upstash) and a proxy/sticky routing — not run yet
+
+**Exit criteria check (2026-10-20, one node, dev → Supabase Mumbai):**
+
+- 20 rooms in parallel, all listed live in the lobby ✅; spectator/player counts, phase, volume and results reach the lobby in ≤ ~1 s (the publish throttle) ✅; closed room reported ✅
+- A new user opens the lobby, watches a room and joins as player without refresh ✅ (e2e; web screens not yet clicked through by a person ⏳)
+- 2 nodes: ⏳ needs Redis
+
 ## Tech debt
 
-| Item                                                                                                                                                  | Proper fix                                                                                   | When                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------- |
-| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                            | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                                         | Before beta (M8)        |
-| Per-IP rate limits are in process memory                                                                                                              | Move to Redis                                                                                | M4 (when Redis arrives) |
-| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                     | Create an OAuth client in Google Cloud                                                       | When wanted             |
-| On start, a game server voids **every** unfinished round, including rounds running on another game server (seen in dev when two servers share one DB) | Track which node owns each room (Redis presence, M4) and only void rooms whose owner is gone | M4                      |
-| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                  | Host api/game-server in the DB region; consider a local Postgres for dev                     | M8 (hosting)            |
-| Board uses emoji placeholders; dice animation is a CSS bounce                                                                                         | Heritage art + PixiJS animation                                                              | M6                      |
-| Web bundle 866 kB (263 kB gzip)                                                                                                                       | Code-split routes; check what pulls in large deps                                            | M6 (performance budget) |
-| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                       | Inject version at build time (tsup `define`)                                                 | M8 deploy               |
+| Item                                                                                                                                                         | Proper fix                                                               | When                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ----------------------- |
+| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                                   | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                     | Before beta (M8)        |
+| Per-IP rate limits are in process memory (API); Colyseus-side chat limits too                                                                                | Move to Redis                                                            | M4 (when Redis arrives) |
+| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                            | Create an OAuth client in Google Cloud                                   | When wanted             |
+| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                         | Host api/game-server in the DB region; consider a local Postgres for dev | M8 (hosting)            |
+| Board uses emoji placeholders; dice animation is a CSS bounce                                                                                                | Heritage art + PixiJS animation                                          | M6                      |
+| Multi-node not exercised: Redis driver/presence wired but unverified; production also needs sticky routing to the owning node (`@colyseus/proxy` or LB rule) | Provision Redis (Upstash, Mumbai), run 2 nodes, add proxy                | M8 (hosting)            |
+| Web bundle 866 kB (263 kB gzip)                                                                                                                              | Code-split routes; check what pulls in large deps                        | M6 (performance budget) |
+| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                              | Inject version at build time (tsup `define`)                             | M8 deploy               |
 
 ## Files touched (all milestones)
 

@@ -21,6 +21,9 @@ const envSchema = z
     REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
     // `console` = no SMS is sent; the code is returned to the web app (development only).
     SMS_PROVIDER: z.enum(['console']).default('console'),
+    // Per-IP abuse limits for sign-in. Raised only for load/e2e tests.
+    OTP_IP_REQUESTS_PER_HOUR: z.coerce.number().int().positive().default(10),
+    OTP_IP_VERIFIES_PER_15MIN: z.coerce.number().int().positive().default(30),
     GOOGLE_CLIENT_ID: optionalString,
   })
   // Only the console sender exists so far; production must wait for a real SMS provider.

@@ -9,6 +9,8 @@ const envSchema = z.object({
   // Same secret as the API: the game server verifies the API's access tokens.
   AUTH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(900),
+  // Shared room registry + pub/sub across several game-server nodes. Optional on one node.
+  REDIS_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
 })
 
 export type Env = z.infer<typeof envSchema>

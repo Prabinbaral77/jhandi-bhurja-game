@@ -252,9 +252,9 @@ Rules:
 
 ### 5.3 Lobby / Presence Service
 
-- Every **public** room publishes a **room summary** to Redis on each change (throttled to ~1/s). Private rooms are never published to the lobby or the global ticker; their summary is visible only to people who already have access.
+- Every **public** room publishes a **room summary** as Colyseus room metadata on each change (throttled to ~1/s). Colyseus' presence layer (in-process on one node, Redis across nodes) fans it out to the lobby room, which streams it to lobby clients. Private rooms are never published to the lobby or the global ticker; their summary is visible only to people who already have access.
   `{ roomId, name, host: {id, name, avatar}, players, spectators, state, roundNo, bankBalance, minBet, maxBet, lastResults[], volumeLast10Min, createdAt }`
-- Lobby clients subscribe to a `lobby` channel and receive diffs.
+- Lobby clients join the `lobby` room and receive the full list, then diffs (`+` / `-`).
 - Lobby UI: list/grid of live rooms with sorting (most players, highest volume, newest) and filters (bet range).
 - A global **live ticker** shows recent big wins across all rooms ("Ram won 1,200 coins on CROWN ×4 in Room Patan").
 

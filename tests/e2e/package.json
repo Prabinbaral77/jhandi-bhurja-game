@@ -5,12 +5,14 @@
   "scripts": {
     "smoke": "tsx --env-file=../../.env smoke.ts",
     "typecheck": "tsc --noEmit",
-    "crash": "tsx --env-file=../../.env crash.ts"
+    "crash": "tsx --env-file=../../.env crash.ts",
+    "lobby": "tsx --env-file=../../.env lobby.ts"
   },
   "devDependencies": {
     "@colyseus/sdk": "^0.18.5",
     "@jhandi/game-rules": "workspace:*",
     "@jhandi/protocol": "workspace:*",
-    "tsx": "^4.23.15"
+    "tsx": "^4.23.15",
+    "zod": "^4.6.7"
   }
 }

@@ -33,8 +33,14 @@ const OTP_MAX_PER_WINDOW = 3
 const OTP_WINDOW_MS = 15 * 60 * 1000
 const OTP_MAX_ATTEMPTS = 5
 
-const otpIpLimiter = createRateLimiter({ limit: 10, windowMs: 60 * 60 * 1000 })
-const verifyIpLimiter = createRateLimiter({ limit: 30, windowMs: 15 * 60 * 1000 })
+const otpIpLimiter = createRateLimiter({
+  limit: env.OTP_IP_REQUESTS_PER_HOUR,
+  windowMs: 60 * 60 * 1000,
+})
+const verifyIpLimiter = createRateLimiter({
+  limit: env.OTP_IP_VERIFIES_PER_15MIN,
+  windowMs: 15 * 60 * 1000,
+})
 
 const rateLimited = (retryAfterMs: number) =>
   new AppError('RATE_LIMITED', 'Too many attempts, please wait', { retryAfterMs })

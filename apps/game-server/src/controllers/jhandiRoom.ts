@@ -6,6 +6,7 @@ import { generateServerSeed, hashServerSeed, rollDice } from '@jhandi/game-rules
 import { SYMBOLS, type GameSymbol } from '@jhandi/game-rules/symbols'
 import { AppError } from '@jhandi/protocol/appError'
 import type { AppErrorShape } from '@jhandi/protocol/errors'
+import { TICKER_MIN_WIN, type RoomLiveSummary } from '@jhandi/protocol/lobby'
 import {
   cancelBetMessageSchema,
   chatMessageSchema,
@@ -22,6 +23,7 @@ import {
 import { Room, type Client } from '@colyseus/core'
 import { z } from 'zod'
 import { accessTokens } from '#lib/accessTokens'
+import { publishTicker } from '#lib/ticker'
 import { getSettings } from '#lib/db'
 import { logger } from '#lib/logger'
 import {
@@ -77,6 +79,9 @@ const RECONNECT_WINDOW_SEC = 30
 const HOST_AWAY_CLOSE_MS = 2 * 60 * 1000
 const HISTORY_LENGTH = 20
 const CHAT_MIN_INTERVAL_MS = 1_000
+const SUMMARY_MIN_INTERVAL_MS = 1_000
+const VOLUME_WINDOW_MS = 10 * 60 * 1000
+const SUMMARY_RESULTS = 5
 
 const BET_REJECTION_MESSAGES: Record<BetRejection, string> = {
   NOT_BETTING: 'Betting is closed for this round',
@@ -96,7 +101,11 @@ const betKey = (userId: string, symbol: GameSymbol) => `${userId}:${symbol}`
  * One Jhandi Burja table (docs/architecture.md §5.2). The Colyseus room is the single writer
  * for its table; every coin-moving step runs through `enqueue` so steps never interleave.
  */
-export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient }> {
+export class JhandiRoom extends Room<{
+  state: JhandiState
+  client: JhandiClient
+  metadata: RoomLiveSummary
+}> {
   override maxClients = 200
   override state = new JhandiState()
 
@@ -114,6 +123,10 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
   private readonly wallets = new Map<string, number>()
   private readonly names = new Map<string, string>()
   private readonly lastChatAt = new Map<string, number>()
+  // Bets of the last 10 minutes, for the lobby's volume figure.
+  private volume: { at: number; amount: number }[] = []
+  private summaryTimer: Timer | undefined
+  private summaryPublishedAt = 0
   private bettingTimer: Timer | undefined
   private phaseTimer: Timer | undefined
   private hostAwayTimer: Timer | undefined
@@ -126,7 +139,7 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
     if (!found || found.room.status === 'CLOSED') throw new Error('Room not found or closed')
 
     // A previous instance of this room may have died mid-round.
-    await voidUnfinishedRounds(dbRoomId)
+    await voidUnfinishedRounds(() => Promise.resolve(false), dbRoomId)
 
     this.dbRoomId = dbRoomId
     this.hostId = found.room.hostId
@@ -148,6 +161,7 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
       state.history.push(dice.map((face) => SYMBOLS[face] ?? '').join(','))
     }
     this.setPhase(found.room.status === 'PAUSED' ? 'PAUSED' : 'OPEN')
+    this.publishSummary()
 
     this.registerMessages()
     logger.info({ roomId: dbRoomId, colyseusRoomId: this.roomId }, 'room created')
@@ -194,11 +208,13 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
       role === 'HOST' ? 'HOST' : role === 'PLAYER' ? 'PLAYER' : 'SPECTATOR',
     )
     this.sendPrivateState(client)
+    this.publishSummary()
   }
 
   override async onDrop(client: JhandiClient): Promise<void> {
     const member = this.state.members.get(this.authOf(client).userId)
     if (member) member.connected = false
+    this.publishSummary()
     await this.allowReconnection(client, RECONNECT_WINDOW_SEC)
   }
 
@@ -206,6 +222,7 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
     const member = this.state.members.get(this.authOf(client).userId)
     if (member) member.connected = true
     this.sendPrivateState(client)
+    this.publishSummary()
   }
 
   override async onLeave(client: JhandiClient): Promise<void> {
@@ -221,6 +238,7 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
       this.state.members.delete(userId)
     }
     await markMemberLeft(this.dbRoomId, userId)
+    this.publishSummary()
 
     if (userId === this.hostId && !this.closed) this.onHostAway()
   }
@@ -316,6 +334,7 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
     if (!member || member.role === 'PLAYER') return
     member.role = 'PLAYER'
     await upsertMember(this.dbRoomId, userId, 'PLAYER')
+    this.publishSummary()
   }
 
   private async placeBet(
@@ -360,7 +379,9 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
       const existing = round.bets.get(key)
       round.bets.set(key, { userId, symbol, amount: (existing?.amount ?? 0) + amount })
       this.refreshBoard()
+      this.volume.push({ at: Date.now(), amount })
       this.feed({ type: 'BET', displayName, symbol, amount, at: Date.now() })
+      this.publishSummary()
     }
     client.send(OUT.betAccepted, { clientSeq })
     this.sendPrivateState(client)
@@ -544,13 +565,26 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
         (netByUser.get(bet.userId) ?? 0) + (bet.won ? bet.winnings : -bet.amount),
       )
       if (bet.won) {
+        const displayName = this.names.get(bet.userId) ?? ''
         this.feed({
           type: 'WIN',
-          displayName: this.names.get(bet.userId) ?? '',
+          displayName,
           symbol: bet.symbol,
           amount: bet.winnings,
           at: Date.now(),
         })
+        if (bet.winnings >= TICKER_MIN_WIN) {
+          publishTicker({
+            id: `${round.id}:${bet.userId}:${bet.symbol}`,
+            dbRoomId: this.dbRoomId,
+            roomName: this.state.name,
+            displayName,
+            symbol: bet.symbol,
+            matches: bet.matches,
+            won: bet.winnings,
+            at: Date.now(),
+          })
+        }
       }
     }
     const message: Omit<RoundSettledMessage, 'yourNet'> = {
@@ -651,6 +685,56 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
 
   private setPhase(phase: RoomPhase): void {
     this.state.phase = phase
+    this.publishSummary()
+  }
+
+  private buildSummary(): RoomLiveSummary {
+    const now = Date.now()
+    this.volume = this.volume.filter((v) => now - v.at < VOLUME_WINDOW_MS)
+    let players = 0
+    let spectators = 0
+    for (const member of this.state.members.values()) {
+      if (!member.connected || member.role === 'HOST') continue
+      if (member.role === 'PLAYER') players += 1
+      else spectators += 1
+    }
+    return {
+      dbRoomId: this.dbRoomId,
+      name: this.state.name,
+      hostId: this.hostId,
+      hostName: this.names.get(this.hostId) ?? '',
+      phase: this.phase,
+      roundNo: this.state.roundNo,
+      players,
+      spectators,
+      bankBalance: this.state.bankBalance,
+      minBet: this.limits.minBet,
+      maxBetPerSymbol: this.limits.maxBetPerSymbol,
+      lastResults: this.state.history
+        .slice(0, SUMMARY_RESULTS)
+        .map((line) =>
+          line.split(',').filter((s): s is GameSymbol => SYMBOLS.includes(s as GameSymbol)),
+        ),
+      volumeLast10Min: this.volume.reduce((sum, v) => sum + v.amount, 0),
+      updatedAt: now,
+    }
+  }
+
+  // Lobby summary via room metadata, at most once a second (docs/architecture.md §5.3).
+  private publishSummary(): void {
+    if (this.closed && this.phase !== 'CLOSED') return
+    const wait = SUMMARY_MIN_INTERVAL_MS - (Date.now() - this.summaryPublishedAt)
+    if (wait > 0) {
+      this.summaryTimer ??= this.clock.setTimeout(() => {
+        this.summaryTimer = undefined
+        this.publishSummary()
+      }, wait)
+      return
+    }
+    this.summaryPublishedAt = Date.now()
+    void this.setMetadata(this.buildSummary()).catch((error: unknown) => {
+      logger.warn({ err: error, roomId: this.dbRoomId }, 'failed to publish room summary')
+    })
   }
 
   private authOf(client: JhandiClient): AuthData {
@@ -713,6 +797,7 @@ export class JhandiRoom extends Room<{ state: JhandiState; client: JhandiClient 
   }
 
   private clearTimers(): void {
+    this.summaryTimer?.clear()
     this.bettingTimer?.clear()
     this.phaseTimer?.clear()
     this.hostAwayTimer?.clear()

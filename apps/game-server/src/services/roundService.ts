@@ -204,11 +204,14 @@ export const voidRound = async (roundId: string): Promise<number> => {
   })
 }
 
-// Run at game-server start: any round left open by a crash is refunded.
-// TODO(tech-debt): with several game-server nodes (M4) only rounds of rooms owned by dead
-// nodes may be voided; today there is one node.
-export const voidUnfinishedRounds = async (roomId?: string): Promise<void> => {
+// Run at game-server start: any round left open by a crash is refunded. Rounds of rooms that are
+// still live on another node (visible in the shared matchmaker registry) are left alone.
+export const voidUnfinishedRounds = async (
+  isRoomLive: (dbRoomId: string) => Promise<boolean>,
+  roomId?: string,
+): Promise<void> => {
   for (const round of await findUnfinishedRounds(roomId)) {
+    if (await isRoomLive(round.roomId)) continue
     const refunded = await voidRound(round.id)
     logger.warn({ roundId: round.id, roomId: round.roomId, refunded }, 'voided unfinished round')
   }

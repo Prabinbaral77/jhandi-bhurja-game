@@ -105,7 +105,8 @@ RoomSummary = {
 
 ### 3.1 Connecting
 
-- Lobby: join room type `lobby` (read-only) with the access token → receives `RoomSummary` diffs for public rooms.
+- Lobby: `joinOrCreate('lobby', { accessToken })` (read-only). Colyseus' LobbyRoom streams every live public room's metadata: `rooms` (full list on join), `+` (`[roomId, listing]` on change), `-` (`roomId` when a room is disposed). `listing.metadata` is a `RoomLiveSummary` (`packages/protocol/src/lobby.ts`): `dbRoomId, name, hostName, phase, roundNo, players, spectators, bankBalance, minBet, maxBetPerSymbol, lastResults (5), volumeLast10Min`. Rooms publish it at most once per second. The lobby also sends `ticker` (`TickerItem[]`: wins ≥ 200 coins across all rooms; last 20 on join, then one at a time).
+- Rooms with nobody connected have no Colyseus instance and so no live summary; the web merges the API's `rooms.list` (all open rooms) with the lobby stream.
 - Game room: `joinOrCreate('jhandi', { dbRoomId, accessToken, joinTicket? })`. The room type is filtered by `dbRoomId`, so everyone with the same DB room id lands in the same Colyseus room; the first join (re)creates it from the database. Users enter as **spectators**; send `join_as_player` to play.
 - Reconnect: Colyseus reconnection token, valid 30 s.
 
