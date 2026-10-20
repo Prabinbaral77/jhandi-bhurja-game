@@ -147,7 +147,18 @@ for attempt j = 0, 1, 2, ...:
 ### 5.3 Reveal & verify
 
 - After settlement, `serverSeed` is sent in `round_settled` and stored in `rounds.server_seed`.
-- `verify(serverSeed, seedHash, roundId)` returns `{ valid: boolean, dice }`. It must be the exact same function the server uses to roll, exported for the web client.
+- `verifyRoll(serverSeed, seedHash, roundId, publishedDice)` returns `{ valid: boolean, dice }`. It uses the exact same code the server uses to roll (`packages/game-rules/src/rng.ts`, pure JS via `@noble/hashes`, so it also runs in the browser).
+
+### 5.4 Test vector
+
+Fixed forever. If the code ever produces something else, past rounds can no longer be verified. Cross-checked against Node's built-in `crypto`.
+
+| Input              | Value                                                              |
+| ------------------ | ------------------------------------------------------------------ |
+| `serverSeed`       | `000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f` |
+| `seedHash`         | `630dcd2966c4336691125448bbb25b4ff412a49c732db2c8abc1b8581bd710dd` |
+| dice for `round-1` | `SPADE, DIAMOND, SPADE, FLAG, SPADE, FLAG`                         |
+| dice for `round-2` | `SPADE, DIAMOND, CLUB, SPADE, CLUB, FLAG`                          |
 
 ---
 
@@ -170,5 +181,6 @@ Server timers are the source of truth. Clients receive absolute timestamps (`bet
 - Fee: rounding down, zero when `hostNet ≤ 0`.
 - 462 outcome vectors generated, all unique, each sums to 6.
 - Exposure: accepts a bet exactly at the limit, rejects one coin over.
-- RNG: same seed + roundId → same dice; verify detects a wrong seed; distribution test over 1,000,000 rolls within ±0.5 % of 1/6 per face.
-- Simulation: player EV ≈ −13.9 % (±0.3 %).
+- RNG: same seed + roundId → same dice; verify detects a wrong seed; distribution test over 1,000,000 dice within ±0.5 % of 1/6 per face; fixed test vector (§5.4).
+- Player EV computed exactly over all 462 outcomes = −6469/46656 ≈ −13.87 % (exact, so no simulation needed).
+- Exposure result equals a brute-force search over all 46,656 ordered rolls.

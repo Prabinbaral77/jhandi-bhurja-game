@@ -10,9 +10,11 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --coverage"
   },
   "dependencies": {
+    "@jhandi/protocol": "workspace:*",
+    "@noble/hashes": "^2.4.0",
     "zod": "^4.6.7"
   }
 }

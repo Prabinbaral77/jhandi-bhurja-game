@@ -5,8 +5,8 @@
 | Milestone                          | Status                                         |
 | ---------------------------------- | ---------------------------------------------- |
 | M0 Project setup                   | ✅ Done (engineering), art style guide pending |
-| M1 Core game rules                 | ⏳ Next                                        |
-| M2 Auth & wallet                   | —                                              |
+| M1 Core game rules                 | ✅ Done                                        |
+| M2 Auth & wallet                   | ⏳ Next                                        |
 | M3 Single-room MVP                 | —                                              |
 | M4 Lobby & spectators              | —                                              |
 | M5 Private rooms                   | —                                              |
@@ -38,6 +38,29 @@
 - `health.check` → postgres up, redis up ✅; game-server `/health` ✅; WebSocket ping/pong ~1–2 ms ✅
 - format, lint, typecheck, test, build all pass locally ✅ — CI on GitHub not run yet (no remote)
 - Production builds (`dist/server.js`) start and answer health checks ✅
+
+## M1 — Core game rules
+
+Branch: `feat/m1-game-rules`. All code in `packages/game-rules/src/` (pure functions, no I/O).
+
+- [x] Coin amount guard — `coins.ts` (created)
+- [x] Dice counts, all 462 outcomes, outcome probability — `dice.ts`, `dice.test.ts` (created)
+- [x] Payout table (k ≥ 2 wins, ×k) — `payout.ts`, `payout.test.ts` (created)
+- [x] Platform fee 200 bps on host profit, rounded down — `fee.ts`, `fee.test.ts` (created)
+- [x] Bet schema — `bet.ts`, `bet.test.ts` (created)
+- [x] Round settlement (worked example §3.2 as a test) — `settlement.ts`, `settlement.test.ts` (created)
+- [x] Bank exposure over 462 outcomes, checked against brute force over 46,656 rolls — `exposure.ts`, `exposure.test.ts` (created)
+- [x] Fair RNG: seed, SHA-256 commit, HMAC dice with rejection sampling, verify; works in browser — `rng.ts`, `rng.test.ts` (created); `@noble/hashes` added
+- [x] Room limits & timings with platform ranges — `limits.ts`, `limits.test.ts` (created)
+- [x] Bet validation in the documented order — `betValidation.ts`, `betValidation.test.ts` (created)
+- [x] 100 % coverage enforced — `packages/game-rules/vitest.config.ts` (created), `packages/game-rules/package.json` (modified); `@vitest/coverage-v8` added at root
+- [x] Docs: test vector §5.4, exact EV — `docs/game-rules.md`, `docs/milestones.md` (modified)
+
+**Exit criteria check (2026-10-20):**
+
+- 100 % statements / branches / functions / lines ✅ (55 tests)
+- 1,000,000 dice within ±0.5 % of 1/6 per face ✅; player EV exactly −6469/46656 ≈ −13.87 % ✅
+- Exposure never lets the bank go negative: matches brute force; `settleRound` throws if it ever would ✅
 
 ## Tech debt
 

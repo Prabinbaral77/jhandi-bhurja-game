@@ -70,7 +70,7 @@ gantt
 **Exit criteria**
 
 - 100 % unit-test coverage on this package.
-- Simulation of 1,000,000 rounds shows each face ≈ 1/6 and player EV ≈ −13.9 %.
+- 1,000,000 dice show each face ≈ 1/6; player EV is exactly −6469/46656 ≈ −13.87 %.
 - Exposure calculator never lets the simulated host bank go negative.
 
 ---
