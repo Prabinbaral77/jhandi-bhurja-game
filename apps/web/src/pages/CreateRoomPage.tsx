@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router'
 import Button from '@/components/Button'
 import ErrorText from '@/components/ErrorText'
 import { useT } from '@/lib/i18n'
+import { rememberInvite } from '@/lib/inviteStore'
 import { useTRPC } from '@/lib/trpc'
 import { formatCoins } from '@/utils/format'
 
@@ -21,10 +22,12 @@ export default function CreateRoomPage() {
   const [minBet, setMinBet] = useState(10)
   const [maxBetPerSymbol, setMaxBetPerSymbol] = useState(1_000)
   const [bettingWindowSec, setBettingWindowSec] = useState(20)
+  const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC')
 
   const create = useMutation(
     trpc.rooms.create.mutationOptions({
-      onSuccess: ({ roomId }) => {
+      onSuccess: ({ roomId, invite }) => {
+        if (invite) rememberInvite(roomId, invite)
         void queryClient.invalidateQueries({ queryKey: trpc.wallet.pathKey() })
         void queryClient.invalidateQueries({ queryKey: trpc.rooms.pathKey() })
         void navigate(`/room/${roomId}`)
@@ -52,10 +55,32 @@ export default function CreateRoomPage() {
       className="mx-auto flex max-w-md flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault()
-        create.mutate({ name, deposit, limits: { minBet, maxBetPerSymbol, bettingWindowSec } })
+        create.mutate({
+          name,
+          visibility,
+          deposit,
+          limits: { minBet, maxBetPerSymbol, bettingWindowSec },
+        })
       }}
     >
       <h1 className="text-2xl font-bold">{t('createRoomTitle')}</h1>
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('visibility')}>
+        {(['PUBLIC', 'PRIVATE'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            role="radio"
+            aria-checked={visibility === v}
+            onClick={() => {
+              setVisibility(v)
+            }}
+            className={`flex flex-col gap-1 rounded-xl border p-3 text-left ${visibility === v ? 'border-marigold bg-marigold/10' : 'border-cream/15'}`}
+          >
+            <span className="font-semibold">{t(`visibility.${v}`)}</span>
+            <span className="text-xs text-cream/60">{t(`visibility.${v}.hint`)}</span>
+          </button>
+        ))}
+      </div>
       <label className="flex flex-col gap-1.5">
         <span className="text-sm text-cream/80">{t('roomName')}</span>
         <input

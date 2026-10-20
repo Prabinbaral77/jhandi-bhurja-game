@@ -36,6 +36,14 @@ export default function HostControls({
         <Button variant="secondary" disabled={snapshot.phase === 'PAUSED'} onClick={actions.pause}>
           {t('pauseRoom')}
         </Button>
+        {snapshot.isPrivate && (
+          <Button
+            variant="secondary"
+            onClick={snapshot.isLocked ? actions.unlockRoom : actions.lockRoom}
+          >
+            {snapshot.isLocked ? t('unlockRoom') : t('lockRoom')}
+          </Button>
+        )}
       </div>
       <form
         className="flex flex-wrap items-center gap-2"

@@ -84,8 +84,12 @@ export const useJhandiRoom = (dbRoomId: string) => {
       on(room, IN.betAccepted, roomErrorMessageSchema.pick({ clientSeq: true }), () => {
         s.set({ lastError: null })
       })
-      room.onLeave(() => {
-        s.set({ connection: 'closed' })
+      room.onLeave((code: number) => {
+        // 4003 = removed by the host; 4001 = this account opened the room elsewhere.
+        s.set({
+          connection: 'closed',
+          connectionError: code === 4003 ? 'REMOVED' : code === 4001 ? 'OPENED_ELSEWHERE' : null,
+        })
       })
       room.onError((_code: number, message?: string) => {
         s.set({ connection: 'error', connectionError: message ?? null })
@@ -142,6 +146,15 @@ export const useJhandiRoom = (dbRoomId: string) => {
     },
     react: (emoji: (typeof REACTIONS)[number]) => {
       send(OUT.reaction, { emoji })
+    },
+    lockRoom: () => {
+      send(OUT.hostLockRoom)
+    },
+    unlockRoom: () => {
+      send(OUT.hostUnlockRoom)
+    },
+    removeMember: (userId: string) => {
+      send(OUT.hostRemoveMember, { userId })
     },
   }
 }

@@ -47,3 +47,23 @@ export const setRoomStatus = async (roomId: string, status: 'OPEN' | 'PAUSED' | 
     .set({ status, ...(status === 'CLOSED' ? { closedAt: sql`now()` } : {}) })
     .where(eq(rooms.id, roomId))
 }
+
+export const setRoomLocked = async (roomId: string, isLocked: boolean) => {
+  await db.update(rooms).set({ isLocked }).where(eq(rooms.id, roomId))
+}
+
+// Private rooms: host, or an accepted invite that was not revoked.
+export const hasInvitedAccess = async (roomId: string, userId: string): Promise<boolean> => {
+  const [row] = await db
+    .select({ access: roomMembers.access, removedAt: roomMembers.removedAt })
+    .from(roomMembers)
+    .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)))
+  return row?.access === 'INVITED' && row.removedAt === null
+}
+
+export const revokeMemberAccess = async (roomId: string, userId: string) => {
+  await db
+    .update(roomMembers)
+    .set({ removedAt: sql`now()`, leftAt: sql`now()` })
+    .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)))
+}

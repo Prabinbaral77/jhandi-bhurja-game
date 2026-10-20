@@ -7,6 +7,7 @@ import { useBootstrapSession } from '@/hooks/useBootstrapSession'
 import { createApiClient, TRPCProvider } from '@/lib/trpc'
 import CreateRoomPage from '@/pages/CreateRoomPage'
 import HomePage from '@/pages/HomePage'
+import InvitePage from '@/pages/InvitePage'
 import RoomPage from '@/pages/RoomPage'
 import RoomsPage from '@/pages/RoomsPage'
 import SignInPage from '@/pages/SignInPage'
@@ -42,6 +43,14 @@ export default function App() {
                 element={
                   <RequireAuth>
                     <WalletPage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/r/:inviteToken"
+                element={
+                  <RequireAuth>
+                    <InvitePage />
                   </RequireAuth>
                 }
               />

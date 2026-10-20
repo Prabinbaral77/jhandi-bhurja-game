@@ -20,6 +20,7 @@ export type RoomPhase = (typeof ROOM_PHASES)[number]
 
 export const createRoomInputSchema = z.object({
   name: z.string().trim().min(3).max(40),
+  visibility: z.enum(['PUBLIC', 'PRIVATE']).default('PUBLIC'),
   deposit: z.number().int().positive(),
   limits: z
     .object({
@@ -31,7 +32,41 @@ export const createRoomInputSchema = z.object({
     .default({}),
 })
 
-export const createRoomOutputSchema = z.object({ roomId: z.string() })
+// Shown to the host once (create / reset); only hashes are kept server-side.
+export const inviteSchema = z.object({ inviteLink: z.string(), roomCode: z.string() })
+
+export type Invite = z.infer<typeof inviteSchema>
+
+export const createRoomOutputSchema = z.object({
+  roomId: z.string(),
+  invite: inviteSchema.optional(),
+})
+
+// Room code: 6 chars, no 0/O/1/I/L (docs/architecture.md §5.6).
+export const ROOM_CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+export const ROOM_CODE_LENGTH = 6
+export const roomCodeSchema = z
+  .string()
+  .trim()
+  .transform((v) => v.toUpperCase().replace(/[\s-]/g, ''))
+  .pipe(
+    z
+      .string()
+      .length(ROOM_CODE_LENGTH)
+      .regex(new RegExp(`^[${ROOM_CODE_ALPHABET}]+$`)),
+  )
+
+export const invitePreviewSchema = z.object({
+  roomId: z.string(),
+  name: z.string(),
+  host: z.object({ id: z.string(), displayName: z.string() }),
+  members: z.number(),
+  maxMembers: z.number(),
+  // True once the caller has access (host or accepted invite).
+  joined: z.boolean(),
+})
+
+export type InvitePreview = z.infer<typeof invitePreviewSchema>
 
 export const roomSummarySchema = z.object({
   roomId: z.string(),
@@ -56,6 +91,9 @@ export const ROOM_CLIENT_MESSAGES = {
   hostPause: 'host_pause',
   hostClose: 'host_close',
   hostTopUp: 'host_top_up_bank',
+  hostLockRoom: 'host_lock_room',
+  hostUnlockRoom: 'host_unlock_room',
+  hostRemoveMember: 'host_remove_member',
   chat: 'chat',
   reaction: 'reaction',
 } as const
@@ -77,6 +115,8 @@ export const topUpMessageSchema = z.object({
 
 export const emptyMessageSchema = z.object({}).optional()
 
+export const removeMemberMessageSchema = z.object({ userId: z.string().min(1) })
+
 export const chatMessageSchema = z.object({ text: z.string().trim().min(1).max(200) })
 
 export const REACTIONS = ['🎉', '🙏', '😮', '😂', '🔥', '🪁'] as const
@@ -94,7 +134,10 @@ export const ROOM_SERVER_MESSAGES = {
   chat: 'chat',
   reaction: 'reaction',
   roomClosed: 'room_closed',
+  memberRemoved: 'member_removed',
 } as const
+
+export const memberRemovedMessageSchema = z.object({ userId: z.string() })
 
 export const walletMessageSchema = z.object({ balance: z.number() })
 
@@ -169,6 +212,8 @@ export const roomSnapshotSchema = z.object({
   minBet: z.number(),
   maxBetPerSymbol: z.number(),
   maxBetPerPlayerPerRound: z.number(),
+  isPrivate: z.boolean(),
+  isLocked: z.boolean(),
   members: z.record(
     z.string(),
     z.object({

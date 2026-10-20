@@ -314,7 +314,7 @@ The host gets a share sheet with: _Copy link_, _Share_ (browser Web Share API â†
 - **By link:** opening the link shows a room preview (room name, host, number of players). Not logged in â†’ log in first, then return to the same link automatically.
 - **By code:** the lobby has a _Join with code_ button; entering the code opens the same preview.
 - After confirming, the user enters as a spectator and can then _Join as player_, same as a public room.
-- The server records the user in `room_members` with `access = INVITED`; after that they can re-enter the room without the code until removed.
+- The server records the user in `room_members` with `access = INVITED`; after that they can re-enter the room without the code until removed. (Implemented without a separate join ticket: the game server reads this row on join.)
 
 **Host controls:**
 
@@ -328,7 +328,7 @@ The host gets a share sheet with: _Copy link_, _Share_ (browser Web Share API â†
 - Private rooms never appear in `GET /rooms`, the lobby channel, or the global ticker.
 - The game server refuses a WebSocket join to a private room unless the user is the host or has an `INVITED` membership.
 - Code entry is rate-limited (e.g. 5 wrong attempts per user per 10 minutes, plus per-IP limits) so codes cannot be guessed by brute force.
-- Codes and tokens are stored hashed; only active rooms' codes are valid, and they expire when the room closes.
+- Codes and tokens are stored hashed (HMAC with the server secret); only active rooms' codes are valid, and they expire when the room closes. The host sees the plain link/code once (create or reset); the web keeps them in that browser's storage, and the host can reset to get new ones from any device.
 
 ```mermaid
 sequenceDiagram

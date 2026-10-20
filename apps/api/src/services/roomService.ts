@@ -4,17 +4,19 @@ import { getOrCreateAccount } from '@jhandi/ledger/accounts'
 import { UNIQUE_VIOLATION, pgErrorCode } from '@jhandi/ledger/pgError'
 import { postTransaction } from '@jhandi/ledger/postTransaction'
 import { AppError } from '@jhandi/protocol/appError'
-import type { RoomSummary } from '@jhandi/protocol/room'
+import type { Invite, RoomSummary } from '@jhandi/protocol/room'
 import { z } from 'zod'
 import { db } from '#lib/db'
 import { findActiveRoomOfHost, insertRoom, listOpenPublicRooms } from '#repositories/roomRepository'
 import { findUserById } from '#repositories/userRepository'
+import { issueInvite } from '#services/inviteService'
 import { getSettings } from '#services/settingsService'
 
 const DEFAULT_VENUE = 'NYATAPOLA'
 
 interface CreateRoomInput {
   name: string
+  visibility: 'PUBLIC' | 'PRIVATE'
   deposit: number
   limits: Partial<
     Pick<RoomLimits, 'minBet' | 'maxBetPerSymbol' | 'maxBetPerPlayerPerRound' | 'bettingWindowSec'>
@@ -25,11 +27,11 @@ interface CreateRoomInput {
 export const createRoom = async (
   hostId: string,
   input: CreateRoomInput,
-): Promise<{ roomId: string }> => {
+): Promise<{ roomId: string; invite?: Invite }> => {
   const host = await findUserById(hostId)
   if (host?.status !== 'ACTIVE') throw new AppError('FORBIDDEN', 'This account is not active')
 
-  const { MIN_HOST_DEPOSIT } = await getSettings()
+  const { MIN_HOST_DEPOSIT, PRIVATE_ROOM_MAX_MEMBERS } = await getSettings()
   if (input.deposit < MIN_HOST_DEPOSIT) {
     throw new AppError('BELOW_MIN_DEPOSIT', `Deposit at least ${MIN_HOST_DEPOSIT} coins`, {
       minDeposit: MIN_HOST_DEPOSIT,
@@ -44,15 +46,20 @@ export const createRoom = async (
   }
 
   const roomId = newId()
+  const isPrivate = input.visibility === 'PRIVATE'
+  let invite: Invite | undefined
   try {
     await db.transaction(async (tx) => {
       await insertRoom(tx, {
         id: roomId,
         hostId,
         name: input.name,
+        visibility: input.visibility,
+        maxMembers: isPrivate ? PRIVATE_ROOM_MAX_MEMBERS : null,
         venue: DEFAULT_VENUE,
         config: limits.data,
       })
+      if (isPrivate) invite = await issueInvite(tx, roomId, hostId)
       const [hostAccount, bankAccount] = await Promise.all([
         getOrCreateAccount(tx, 'USER', hostId),
         getOrCreateAccount(tx, 'ROOM_BANK', roomId),
@@ -74,7 +81,7 @@ export const createRoom = async (
     }
     throw error
   }
-  return { roomId }
+  return invite ? { roomId, invite } : { roomId }
 }
 
 type SummaryRow = Awaited<ReturnType<typeof listOpenPublicRooms>>[number]

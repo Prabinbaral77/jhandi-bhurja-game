@@ -29,6 +29,13 @@
       "when": 1792507567412,
       "tag": "0003_rooms_rounds_bets",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792511981968,
+      "tag": "0004_room_invites",
+      "breakpoints": true
     }
   ]
 }

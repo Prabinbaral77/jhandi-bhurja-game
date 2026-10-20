@@ -6,7 +6,8 @@
     "smoke": "tsx --env-file=../../.env smoke.ts",
     "typecheck": "tsc --noEmit",
     "crash": "tsx --env-file=../../.env crash.ts",
-    "lobby": "tsx --env-file=../../.env lobby.ts"
+    "lobby": "tsx --env-file=../../.env lobby.ts",
+    "private": "tsx --env-file=../../.env private.ts"
   },
   "devDependencies": {
     "@colyseus/sdk": "^0.18.5",

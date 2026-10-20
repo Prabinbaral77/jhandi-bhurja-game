@@ -8,6 +8,7 @@ import ChipPicker from '@/components/room/ChipPicker'
 import DiceRow from '@/components/room/DiceRow'
 import FloatingReactions from '@/components/room/FloatingReactions'
 import HostControls from '@/components/room/HostControls'
+import InvitePanel from '@/components/room/InvitePanel'
 import ResultBanner from '@/components/room/ResultBanner'
 import SidePanel from '@/components/room/SidePanel'
 import { useJhandiRoom } from '@/hooks/useJhandiRoom'
@@ -34,6 +35,22 @@ export default function RoomPage() {
   const [chip, setChip] = useState(10)
   const secondsLeft = useSecondsLeft(snapshot?.phase === 'BETTING' ? snapshot.bettingEndsAt : 0)
 
+  if (connection === 'closed' && connectionError) {
+    return (
+      <div className="flex flex-col items-start gap-3">
+        <p className="text-tika">
+          {connectionError === 'REMOVED'
+            ? t('youWereRemoved')
+            : connectionError === 'OPENED_ELSEWHERE'
+              ? t('openedElsewhere')
+              : t('connectionLost')}
+        </p>
+        <Link to="/rooms" className="text-marigold underline">
+          {t('backToRooms')}
+        </Link>
+      </div>
+    )
+  }
   if (connection === 'error') {
     return (
       <div className="flex flex-col items-start gap-3">
@@ -134,13 +151,14 @@ export default function RoomPage() {
             <Button onClick={actions.joinAsPlayer}>{t('joinAsPlayer')}</Button>
           </div>
         )}
+        {isHost && snapshot.isPrivate && <InvitePanel roomId={roomId} />}
         {isHost && <HostControls snapshot={snapshot} actions={actions} />}
 
         <p className="break-all text-xs text-cream/40">
           {t('seedHash')}: {snapshot.seedHash || '—'}
         </p>
       </div>
-      <SidePanel snapshot={snapshot} actions={actions} />
+      <SidePanel snapshot={snapshot} actions={actions} canRemove={isHost && snapshot.isPrivate} />
       <FloatingReactions />
     </div>
   )

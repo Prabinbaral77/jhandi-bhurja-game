@@ -2,17 +2,17 @@
 
 > Updated after every task. Milestones are defined in [milestones.md](milestones.md).
 
-| Milestone                          | Status                                                                      |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| M0 Project setup                   | ✅ Done (engineering), art style guide pending                              |
-| M1 Core game rules                 | ✅ Done                                                                     |
-| M2 Auth & wallet                   | ✅ Done                                                                     |
-| M3 Single-room MVP                 | ✅ Done                                                                     |
-| M4 Lobby & spectators              | ✅ Done on one node (pending review & commit); multi-node needs a Redis URL |
-| M5 Private rooms                   | ⏳ Next                                                                     |
-| M6 Heritage art, sound & Nepali UI | —                                                                           |
-| M7 Hardening & admin               | —                                                                           |
-| M8 Beta & launch                   | —                                                                           |
+| Milestone                          | Status                                            |
+| ---------------------------------- | ------------------------------------------------- |
+| M0 Project setup                   | ✅ Done (engineering), art style guide pending    |
+| M1 Core game rules                 | ✅ Done                                           |
+| M2 Auth & wallet                   | ✅ Done                                           |
+| M3 Single-room MVP                 | ✅ Done                                           |
+| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL |
+| M5 Private rooms                   | ✅ Done (pending review & commit)                 |
+| M6 Heritage art, sound & Nepali UI | ⏳ Next                                           |
+| M7 Hardening & admin               | —                                                 |
+| M8 Beta & launch                   | —                                                 |
 
 ## M0 — Project setup
 
@@ -126,6 +126,25 @@ Branch: `feat/m4-lobby`.
 - 20 rooms in parallel, all listed live in the lobby ✅; spectator/player counts, phase, volume and results reach the lobby in ≤ ~1 s (the publish throttle) ✅; closed room reported ✅
 - A new user opens the lobby, watches a room and joins as player without refresh ✅ (e2e; web screens not yet clicked through by a person ⏳)
 - 2 nodes: ⏳ needs Redis
+
+## M5 — Private rooms
+
+Branch: `feat/m5-private-rooms`.
+
+- [x] Schema: `room_invites` (hashed token + code, one active per room) — `packages/db/src/schema/invites.ts`, `migrations/0004_room_invites.sql` (created)
+- [x] API: private rooms on `rooms.create` (invite returned once, `maxMembers` = 20), `invite.accept` (link), `invite.joinByCode` (per-user 5/10 min + per-IP limits), `invite.reset`; `rooms.list` hides private rooms — `apps/api/src/{services/inviteService,repositories/inviteRepository,controllers/inviteRouter}.ts` (created), `roomService.ts`, `roomsRouter.ts`, `appRouter.ts` (modified)
+- [x] Game server: private rooms unlisted (never in lobby/ticker); join needs host or `INVITED` access (`NOT_INVITED`); `host_lock_room` / `host_unlock_room`; `host_remove_member` refunds open bets, revokes access, disconnects (4003) — `jhandiRoom.ts`, `repositories/roomRepository.ts`, `schemas/roomState.ts` (modified)
+- [x] Protocol: `NOT_INVITED`, invite/preview schemas, 6-char code alphabet, new messages — `packages/protocol/src/{room,errors}.ts` (modified)
+- [x] Web: public/private choice on create; host invite panel (code, link, copy, Web Share, reset); `/r/:inviteToken` page (sign-in redirect back); "join with code" in the lobby; lock/unlock and remove-member controls; removed/opened-elsewhere notices — `apps/web/src/{components/room/InvitePanel,components/lobby/JoinByCode,pages/InvitePage,lib/inviteStore}.tsx|ts` (created), `CreateRoomPage`, `RoomPage`, `RoomsPage`, `HostControls`, `SidePanel`, `useJhandiRoom`, `App`, `i18n` (modified)
+- [x] Tests: API invite flows on PGlite (5); e2e `tests/e2e/private.ts` (`pnpm --filter @jhandi/e2e private`)
+
+**Exit criteria check (2026-10-20):**
+
+- Private rooms never appear in lobby, ticker or `rooms.list` ✅
+- Old link/code fail right after reset; removed member cannot rejoin ✅
+- Brute-force on codes blocked by rate limits (6th wrong try → `RATE_LIMITED`) ✅
+- Lock → `ROOM_LOCKED` for new joins, members keep access ✅
+- Web screens not yet clicked through by a person ⏳
 
 ## Tech debt
 

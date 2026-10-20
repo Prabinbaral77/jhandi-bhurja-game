@@ -13,6 +13,7 @@ import {
   emptyMessageSchema,
   placeBetMessageSchema,
   reactionMessageSchema,
+  removeMemberMessageSchema,
   ROOM_CLIENT_MESSAGES as IN,
   ROOM_SERVER_MESSAGES as OUT,
   topUpMessageSchema,
@@ -29,7 +30,10 @@ import { logger } from '#lib/logger'
 import {
   findRoom,
   findUser,
+  hasInvitedAccess,
   markMemberLeft,
+  revokeMemberAccess,
+  setRoomLocked,
   setRoomStatus,
   upsertMember,
 } from '#repositories/roomRepository'
@@ -117,6 +121,7 @@ export class JhandiRoom extends Room<{
   private round: ActiveRound | null = null
   private pauseAfterRound = false
   private closed = false
+  private isPrivate = false
   private readonly enqueue = createSerialQueue()
   private readonly userAccounts = new Map<string, string>()
   // Wallet balances of people in the room, refreshed from every ledger write (saves a query per bet).
@@ -143,6 +148,10 @@ export class JhandiRoom extends Room<{
 
     this.dbRoomId = dbRoomId
     this.hostId = found.room.hostId
+    this.isPrivate = found.room.visibility === 'PRIVATE'
+    // Private rooms stay out of the lobby listing (docs/architecture.md §5.6).
+    if (this.isPrivate)
+      (this as unknown as { _listing: { unlisted: boolean } })._listing.unlisted = true
     this.limits = roomLimitsSchema.parse(found.room.config)
     this.bankAccountId = await getBankAccount(dbRoomId)
     this.hostAccountId = await getUserAccount(this.hostId)
@@ -155,6 +164,8 @@ export class JhandiRoom extends Room<{
     state.minBet = this.limits.minBet
     state.maxBetPerSymbol = this.limits.maxBetPerSymbol
     state.maxBetPerPlayerPerRound = this.limits.maxBetPerPlayerPerRound
+    state.isPrivate = this.isPrivate
+    state.isLocked = found.room.isLocked
     state.bankBalance = await balanceOf(this.bankAccountId)
     for (const symbol of SYMBOLS) state.board.set(symbol, new SymbolTotalState())
     for (const dice of await recentDice(dbRoomId, HISTORY_LENGTH)) {
@@ -173,6 +184,13 @@ export class JhandiRoom extends Room<{
     const user = await findUser(userId)
     if (user?.status !== 'ACTIVE') throw new Error('Account not active')
     if (this.closed) throw new Error('Room is closed')
+    if (
+      this.isPrivate &&
+      userId !== this.hostId &&
+      !(await hasInvitedAccess(this.dbRoomId, userId))
+    ) {
+      throw new Error('NOT_INVITED')
+    }
     return { userId, displayName: user.displayName }
   }
 
@@ -296,6 +314,20 @@ export class JhandiRoom extends Room<{
         return this.closeRoom('HOST_CLOSED')
       })
     })
+    onValidatedMessage(this, IN.hostLockRoom, emptyMessageSchema, (client: JhandiClient) => {
+      void this.run(client, undefined, () => this.setLocked(client, true))
+    })
+    onValidatedMessage(this, IN.hostUnlockRoom, emptyMessageSchema, (client: JhandiClient) => {
+      void this.run(client, undefined, () => this.setLocked(client, false))
+    })
+    onValidatedMessage(
+      this,
+      IN.hostRemoveMember,
+      removeMemberMessageSchema,
+      (client: JhandiClient, msg) => {
+        void this.run(client, undefined, () => this.removeMember(client, msg.userId))
+      },
+    )
     onValidatedMessage(this, IN.hostTopUp, topUpMessageSchema, (client: JhandiClient, msg) => {
       void this.run(client, msg.clientSeq, () => this.topUp(client, msg.amount, msg.clientSeq))
     })
@@ -416,6 +448,48 @@ export class JhandiRoom extends Room<{
     this.refreshBoard()
     this.feed({ type: 'CANCEL', displayName, symbol, amount: bet.amount, at: Date.now() })
     this.sendPrivateState(client)
+  }
+
+  // Private rooms only: a locked room accepts no new invites (API side); members can still re-enter.
+  private async setLocked(client: JhandiClient, isLocked: boolean): Promise<void> {
+    this.assertHost(client)
+    if (!this.isPrivate) throw new AppError('FORBIDDEN', 'Only private rooms can be locked')
+    await setRoomLocked(this.dbRoomId, isLocked)
+    this.state.isLocked = isLocked
+  }
+
+  // Revokes access, refunds the member's open bets for this round and disconnects them.
+  private async removeMember(client: JhandiClient, userId: string): Promise<void> {
+    this.assertHost(client)
+    if (!this.isPrivate) throw new AppError('FORBIDDEN', 'Only private rooms can remove members')
+    if (userId === this.hostId) throw new AppError('FORBIDDEN', 'The host cannot be removed')
+
+    const round = this.round
+    const userAccountId = this.userAccounts.get(userId)
+    if (round && userAccountId) {
+      for (const [key, bet] of [...round.bets]) {
+        if (bet.userId !== userId) continue
+        const balance = await refundBet({
+          roundId: round.id,
+          userId,
+          userAccountId,
+          escrowAccountId: round.escrowAccountId,
+          symbol: bet.symbol,
+          amount: bet.amount,
+          idempotencyKey: `remove:${round.id}:${userId}:${bet.symbol}`,
+        })
+        if (balance !== undefined) this.wallets.set(userId, balance)
+        round.bets.delete(key)
+      }
+      this.refreshBoard()
+    }
+    await revokeMemberAccess(this.dbRoomId, userId)
+    this.state.members.delete(userId)
+    this.broadcast(OUT.memberRemoved, { userId })
+    for (const other of this.clients) {
+      if (other.auth?.userId === userId) other.leave(4003, 'Removed by host')
+    }
+    this.publishSummary()
   }
 
   private async topUp(client: JhandiClient, amount: number, clientSeq: number): Promise<void> {
@@ -573,7 +647,7 @@ export class JhandiRoom extends Room<{
           amount: bet.winnings,
           at: Date.now(),
         })
-        if (bet.winnings >= TICKER_MIN_WIN) {
+        if (bet.winnings >= TICKER_MIN_WIN && !this.isPrivate) {
           publishTicker({
             id: `${round.id}:${bet.userId}:${bet.symbol}`,
             dbRoomId: this.dbRoomId,

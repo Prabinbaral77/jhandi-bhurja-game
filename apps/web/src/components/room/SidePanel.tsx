@@ -9,9 +9,11 @@ import { formatCoins } from '@/utils/format'
 export default function SidePanel({
   snapshot,
   actions,
+  canRemove,
 }: {
   snapshot: RoomSnapshot
   actions: RoomActions
+  canRemove: boolean
 }) {
   const t = useT()
   const feed = useRoomStore((s) => s.feed)
@@ -32,6 +34,19 @@ export default function SidePanel({
               className={`rounded-full px-3 py-1 ${m.role === 'HOST' ? 'bg-marigold/20 text-marigold' : m.role === 'PLAYER' ? 'bg-jamara/15' : 'bg-cream/10 text-cream/60'} ${m.connected ? '' : 'opacity-50'}`}
             >
               {m.displayName}
+              {canRemove && m.role !== 'HOST' && (
+                <button
+                  type="button"
+                  aria-label={t('removeMember')}
+                  title={t('removeMember')}
+                  className="ml-1 rounded-full px-1 text-tika hover:bg-tika/20"
+                  onClick={() => {
+                    actions.removeMember(m.userId)
+                  }}
+                >
+                  ×
+                </button>
+              )}
             </li>
           ))}
         </ul>

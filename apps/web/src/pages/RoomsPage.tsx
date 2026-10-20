@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router'
 import RoomCard, { type LobbyRoom } from '@/components/lobby/RoomCard'
+import JoinByCode from '@/components/lobby/JoinByCode'
 import Ticker from '@/components/lobby/Ticker'
 import { useLobby } from '@/hooks/useLobby'
 import { useT, type MessageKey } from '@/lib/i18n'
@@ -77,6 +78,7 @@ export default function RoomsPage() {
       </div>
 
       <Ticker items={lobby.ticker} />
+      <JoinByCode />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-cream/60">{t('sortBy')}</span>

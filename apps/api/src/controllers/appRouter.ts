@@ -1,5 +1,6 @@
 import { authRouter } from '#controllers/authRouter'
 import { healthRouter } from '#controllers/healthRouter'
+import { inviteRouter } from '#controllers/inviteRouter'
 import { meRouter } from '#controllers/meRouter'
 import { roomsRouter } from '#controllers/roomsRouter'
 import { walletRouter } from '#controllers/walletRouter'
@@ -11,6 +12,7 @@ export const appRouter = router({
   me: meRouter,
   wallet: walletRouter,
   rooms: roomsRouter,
+  invite: inviteRouter,
 })
 
 export type AppRouter = typeof appRouter
