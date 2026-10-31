@@ -1,0 +1,1 @@
+ALTER TABLE "jhandi"."users" ADD COLUMN "email" text;

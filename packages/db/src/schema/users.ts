@@ -10,6 +10,8 @@ export const users = jhandiSchema.table('users', {
   avatarUrl: text('avatar_url'),
   status: userStatus('status').notNull().default('ACTIVE'),
   isAdmin: boolean('is_admin').notNull().default(false),
+  // Verified e-mail from Google sign-in (lower-case). Admin access is granted by e-mail allowlist.
+  email: text('email'),
   // Responsible play (docs/architecture.md §10): confirmed 18+ at sign-up.
   ageConfirmedAt: timestamp('age_confirmed_at', { withTimezone: true }),
   // HMAC of the sign-up IP, for bonus-farming signals (many accounts from one address).

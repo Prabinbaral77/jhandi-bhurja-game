@@ -71,6 +71,13 @@
       "when": 1793426555831,
       "tag": "0009_signup_bonus_5000",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793429065410,
+      "tag": "0010_users_email",
+      "breakpoints": true
     }
   ]
 }

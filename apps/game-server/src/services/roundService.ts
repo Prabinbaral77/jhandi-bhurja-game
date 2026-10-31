@@ -7,7 +7,7 @@ import { postTransaction, type LedgerEntryInput } from '@jhandi/ledger/postTrans
 import { SYSTEM_ACCOUNT_IDS } from '@jhandi/ledger/systemAccounts'
 import { db } from '#lib/db'
 import { logger } from '#lib/logger'
-import { setRoomStatus } from '#repositories/roomRepository'
+import { findOpenRooms, markAllMembersLeft, setRoomStatus } from '#repositories/roomRepository'
 import {
   applyBetResults,
   findUnfinishedRounds,
@@ -260,5 +260,28 @@ export const closeRoomAndReturnBank = async (input: {
     }
   })
   await setRoomStatus(input.roomId, 'CLOSED')
+  await markAllMembersLeft(input.roomId)
   return bank
+}
+
+/**
+ * Rooms left OPEN/PAUSED in the DB with no live game behind them (node crash, everyone gone):
+ * the bank goes back to the host and the room is closed. Runs at boot after unfinished rounds
+ * were voided, so the bank is whole again. Admin dashboards then count only real games.
+ */
+export const closeAbandonedRooms = async (
+  isRoomLive: (dbRoomId: string) => Promise<boolean>,
+): Promise<number> => {
+  let closed = 0
+  for (const room of await findOpenRooms()) {
+    if (await isRoomLive(room.id)) continue
+    const returned = await closeRoomAndReturnBank({
+      roomId: room.id,
+      hostAccountId: await getUserAccount(room.hostId),
+      bankAccountId: await getBankAccount(room.id),
+    })
+    closed += 1
+    logger.warn({ roomId: room.id, name: room.name, returned }, 'closed abandoned room')
+  }
+  return closed
 }

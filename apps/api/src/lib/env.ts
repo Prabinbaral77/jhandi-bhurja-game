@@ -33,6 +33,18 @@ const envSchema = z
     // Number of reverse proxies in front of the API (so req.ip is the real client). 0 = none.
     TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
     GOOGLE_CLIENT_ID: optionalString,
+    // Comma-separated Google e-mails that get admin access on sign-in; everyone else loses it.
+    // Empty = admin flags are managed only by the admin:grant / admin:revoke scripts.
+    ADMIN_EMAILS: z.preprocess(
+      (value) =>
+        typeof value === 'string'
+          ? value
+              .split(',')
+              .map((part) => part.trim().toLowerCase())
+              .filter(Boolean)
+          : [],
+      z.array(z.email()),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.NODE_ENV !== 'production') return

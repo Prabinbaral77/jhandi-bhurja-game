@@ -5,7 +5,7 @@ import { platformSettings } from '#schema/platformSettings'
 const coins = z.number().int().nonnegative()
 
 // docs/architecture.md §2.6 — seeded by migration 0002, editable by admins later.
-const settingsSchema = z.object({
+export const settingsSchema = z.object({
   SIGNUP_BONUS: coins,
   DAILY_BONUS: coins,
   MIN_HOST_DEPOSIT: coins,

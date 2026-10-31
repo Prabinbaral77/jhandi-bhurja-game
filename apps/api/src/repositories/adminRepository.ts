@@ -1,6 +1,6 @@
 import { accounts, ledgerEntries, transactions } from '@jhandi/db/schema/ledger'
 import { platformSettings } from '@jhandi/db/schema/platformSettings'
-import { bets, rooms, rounds } from '@jhandi/db/schema/rooms'
+import { bets, roomMembers, rooms, rounds } from '@jhandi/db/schema/rooms'
 import { authIdentities, users } from '@jhandi/db/schema/users'
 import { and, count, desc, eq, ilike, isNotNull, ne, or, sql } from 'drizzle-orm'
 import type { DbOrTx } from '@jhandi/db/database'
@@ -16,6 +16,7 @@ const userColumns = {
   displayName: users.displayName,
   status: users.status,
   isAdmin: users.isAdmin,
+  email: users.email,
   createdAt: users.createdAt,
   signupIpHash: users.signupIpHash,
   phone: sql<
@@ -34,6 +35,7 @@ export const searchUsers = async (query: string, limit = 20) => {
       or(
         idMatch,
         ilike(users.displayName, `%${query}%`),
+        ilike(users.email, `%${query}%`),
         sql`exists (select 1 from ${authIdentities} where ${authIdentities.userId} = ${USER_ID} and ${authIdentities.subject} ilike ${`%${query}%`})`,
       ),
     )
@@ -71,7 +73,9 @@ export const setUserStatus = async (
   return rows.length === 1
 }
 
-export const listRoomsForAdmin = async (limit = 50) =>
+const ACTIVE_MEMBER = sql`${roomMembers.leftAt} is null and ${roomMembers.removedAt} is null`
+
+export const listRoomsForAdmin = async (scope: 'live' | 'all', limit = 200) =>
   db
     .select({
       id: rooms.id,
@@ -83,11 +87,104 @@ export const listRoomsForAdmin = async (limit = 50) =>
       createdAt: rooms.createdAt,
       bankBalance: sql<number>`coalesce((select ${accounts.balance} from ${accounts} where ${accounts.type} = 'ROOM_BANK' and ${accounts.ownerId} = ${ROOM_ID}), 0)::float8`,
       rounds: sql<number>`(select count(*) from ${rounds} where ${rounds.roomId} = ${ROOM_ID})::int`,
+      members: sql<number>`case when ${rooms.status} = 'CLOSED' then 0 else (select count(*) from ${roomMembers} where ${roomMembers.roomId} = ${ROOM_ID} and ${ACTIVE_MEMBER}) end::int`,
+      platformFee: sql<number>`coalesce((select sum(${rounds.platformFee}) from ${rounds} where ${rounds.roomId} = ${ROOM_ID}), 0)::float8`,
+      losingStakes: sql<number>`coalesce((select sum(${rounds.losingStakes}) from ${rounds} where ${rounds.roomId} = ${ROOM_ID}), 0)::float8`,
+      winningsPaid: sql<number>`coalesce((select sum(${rounds.winningsPaid}) from ${rounds} where ${rounds.roomId} = ${ROOM_ID}), 0)::float8`,
+      roundInPlay: sql<boolean>`exists (select 1 from ${rounds} where ${rounds.roomId} = ${ROOM_ID} and ${rounds.status} in ('BETTING', 'LOCKED'))`,
+      lastRoundAt: sql<Date | null>`(select max(${rounds.startedAt}) from ${rounds} where ${rounds.roomId} = ${ROOM_ID})`,
     })
     .from(rooms)
     .innerJoin(users, eq(users.id, rooms.hostId))
+    .where(scope === 'live' ? ne(rooms.status, 'CLOSED') : undefined)
     .orderBy(desc(rooms.createdAt))
     .limit(limit)
+
+export const listRoundsForAdmin = async (roomId: string, limit = 100) =>
+  db
+    .select({
+      id: rounds.id,
+      roundNo: rounds.roundNo,
+      status: rounds.status,
+      dice: rounds.dice,
+      losingStakes: rounds.losingStakes,
+      winningsPaid: rounds.winningsPaid,
+      platformFee: rounds.platformFee,
+      startedAt: rounds.startedAt,
+      settledAt: rounds.settledAt,
+      bets: sql<number>`(select count(*) from ${bets} where ${bets.roundId} = ${sql.raw('"jhandi"."rounds"."id"')})::int`,
+      staked: sql<number>`coalesce((select sum(${bets.amount}) from ${bets} where ${bets.roundId} = ${sql.raw('"jhandi"."rounds"."id"')} and ${bets.status} <> 'CANCELLED'), 0)::float8`,
+    })
+    .from(rounds)
+    .where(eq(rounds.roomId, roomId))
+    .orderBy(desc(rounds.roundNo))
+    .limit(limit)
+
+export const listTopBalances = async (limit: number) =>
+  db
+    .select(userColumns)
+    .from(users)
+    .orderBy(sql`${userColumns.balance} desc`, desc(users.createdAt))
+    .limit(limit)
+
+const systemBalance = (code: string) =>
+  sql<number>`coalesce((select ${accounts.balance} from ${accounts} where ${accounts.type} = 'SYSTEM' and ${accounts.code} = ${code}), 0)::float8`
+const typeTotal = (type: string) =>
+  sql<number>`coalesce((select sum(${accounts.balance}) from ${accounts} where ${accounts.type} = ${type}), 0)::float8`
+
+const liveMembers = (role: string) =>
+  sql<number>`(select count(*) from ${roomMembers} m join ${rooms} r on r.id = m.room_id where r.status <> 'CLOSED' and m.left_at is null and m.removed_at is null and m.role = ${role})::int`
+
+// One round trip: every number on the operator dashboard. `dayStart` = Kathmandu midnight.
+export const overviewStats = async (dayStartAt: Date, weekStartAt: Date) => {
+  // Raw `sql` params go to the driver untyped: pass timestamps as ISO strings.
+  const dayStart = sql`${dayStartAt.toISOString()}::timestamptz`
+  const weekStart = sql`${weekStartAt.toISOString()}::timestamptz`
+  const [row] = await db
+    .select({
+      liveRooms: sql<number>`(select count(*) from ${rooms} where ${rooms.status} <> 'CLOSED')::int`,
+      roundsInPlay: sql<number>`(select count(*) from ${rounds} where ${rounds.status} in ('BETTING', 'LOCKED'))::int`,
+      hosts: liveMembers('HOST'),
+      players: liveMembers('PLAYER'),
+      spectators: liveMembers('SPECTATOR'),
+      feeTotal: systemBalance('PLATFORM_FEE'),
+      feeToday: sql<number>`coalesce((select sum(${rounds.platformFee}) from ${rounds} where ${rounds.settledAt} >= ${dayStart}), 0)::float8`,
+      feeWeek: sql<number>`coalesce((select sum(${rounds.platformFee}) from ${rounds} where ${rounds.settledAt} >= ${weekStart}), 0)::float8`,
+      roundsToday: sql<number>`(select count(*) from ${rounds} where ${rounds.settledAt} >= ${dayStart})::int`,
+      inWallets: typeTotal('USER'),
+      inBanks: typeTotal('ROOM_BANK'),
+      inEscrow: typeTotal('ROUND_ESCROW'),
+      bonusesIssued: sql<number>`-${systemBalance('BONUS')}`,
+      adjustmentsNet: sql<number>`-${systemBalance('ADJUSTMENT')}`,
+      usersTotal: sql<number>`(select count(*) from ${users})::int`,
+      usersToday: sql<number>`(select count(*) from ${users} where ${users.createdAt} >= ${dayStart})::int`,
+      bettorsToday: sql<number>`(select count(distinct ${bets.userId}) from ${bets} where ${bets.createdAt} >= ${dayStart})::int`,
+      frozenOrBanned: sql<number>`(select count(*) from ${users} where ${users.status} <> 'ACTIVE')::int`,
+    })
+    .from(sql`(select 1) as one`)
+  if (!row) throw new Error('overview query returned nothing')
+  return row
+}
+
+// Platform fee per Kathmandu calendar day for the last N days (settled rounds only).
+export const feeByDay = async (days: number) => {
+  const day = sql<string>`to_char(${rounds.settledAt} at time zone 'Asia/Kathmandu', 'YYYY-MM-DD')`
+  return db
+    .select({
+      date: day,
+      rounds: sql<number>`count(*)::int`,
+      fee: sql<number>`coalesce(sum(${rounds.platformFee}), 0)::float8`,
+    })
+    .from(rounds)
+    .where(
+      and(
+        eq(rounds.status, 'SETTLED'),
+        sql`${rounds.settledAt} >= now() - make_interval(days => ${days})`,
+      ),
+    )
+    .groupBy(day)
+    .orderBy(desc(day))
+}
 
 export const listSettings = async () => db.select().from(platformSettings)
 

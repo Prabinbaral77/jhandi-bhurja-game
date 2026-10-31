@@ -13,6 +13,8 @@ const envSchema = z.object({
   WEB_ORIGIN: z.url(),
   // Number of reverse proxies in front of the server (real client IP for rate limits).
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
+  // Per-IP matchmaking budget (seat reservations). Raised only for load tests from one machine.
+  MATCHMAKE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   // Shared room registry + pub/sub across several game-server nodes. Optional on one node.
   REDIS_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
 })

@@ -7,6 +7,7 @@ import { SYSTEM_ACCOUNT_IDS } from '@jhandi/ledger/systemAccounts'
 import { AppError } from '@jhandi/protocol/appError'
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose'
 import { db } from '#lib/db'
+import { writeAudit } from '#repositories/auditRepository'
 import { env } from '#lib/env'
 import { insertBonus } from '#repositories/bonusRepository'
 import {
@@ -18,6 +19,8 @@ import {
 } from '#repositories/otpRepository'
 import {
   findUserByIdentity,
+  setUserAdmin,
+  setUserEmail,
   insertUserWithIdentity,
   type AuthProvider,
 } from '#repositories/userRepository'
@@ -83,6 +86,8 @@ export interface SignUpProfile {
   // Set on the first sign-in only (responsible play + bonus-farming signal).
   ageConfirmed?: boolean
   ip?: string
+  // Verified e-mail (Google only).
+  email?: string
 }
 
 export interface SignInResult {
@@ -114,6 +119,7 @@ const signUp = async (
       avatarUrl: profile.avatarUrl,
       ageConfirmedAt: profile.ageConfirmed ? new Date() : null,
       signupIpHash: profile.ip ? hashSecret(`ip:${profile.ip}`) : null,
+      email: profile.email?.toLowerCase() ?? null,
     })
     const accountId = await getOrCreateAccount(tx, 'USER', created.id)
     if (SIGNUP_BONUS > 0) {
@@ -209,10 +215,39 @@ export const signInWithGoogle = async (idToken: string, ip: string): Promise<Sig
   if (!payload.sub) throw new AppError('UNAUTHENTICATED', 'Google sign-in failed')
   const name = typeof payload.name === 'string' && payload.name ? payload.name : 'Player'
   const picture = typeof payload.picture === 'string' ? payload.picture : null
-  return signInWithIdentity('GOOGLE', payload.sub, {
+  const email =
+    typeof payload.email === 'string' && payload.email_verified === true
+      ? payload.email.toLowerCase()
+      : undefined
+  const result = await signInWithIdentity('GOOGLE', payload.sub, {
     displayName: name.slice(0, 30),
     avatarUrl: picture,
     ageConfirmed: true,
     ip,
+    email,
   })
+  return syncAdminByEmail(result, email)
+}
+
+/**
+ * Admin access follows the ADMIN_EMAILS allowlist (docs/security.md): a Google account on the
+ * list becomes admin at sign-in, any other Google account loses the flag. Changes are audited.
+ * With an empty list the flag is left alone (managed by the admin:grant / admin:revoke scripts).
+ */
+const syncAdminByEmail = async (result: SignInResult, email: string | undefined) => {
+  const { user } = result
+  if (email && user.email !== email) await setUserEmail(user.id, email)
+  if (env.ADMIN_EMAILS.length === 0) return result
+  const shouldBeAdmin = email !== undefined && env.ADMIN_EMAILS.includes(email)
+  if (shouldBeAdmin === user.isAdmin) return result
+  await db.transaction(async (tx) => {
+    await setUserAdmin(tx, user.id, shouldBeAdmin)
+    await writeAudit(tx, {
+      actorId: null,
+      action: shouldBeAdmin ? 'admin.grant' : 'admin.revoke',
+      target: `user:${user.id}`,
+      data: { via: 'ADMIN_EMAILS', email },
+    })
+  })
+  return { ...result, user: { ...user, isAdmin: shouldBeAdmin, email: email ?? user.email } }
 }

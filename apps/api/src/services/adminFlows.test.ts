@@ -8,7 +8,9 @@ import {
   adminAudit,
   adminGetSettings,
   adminGetUser,
+  adminOverview,
   adminSearchUsers,
+  adminTopBalances,
   adminSetUserStatus,
   adminUpdateSetting,
 } from '#services/adminService'
@@ -32,6 +34,28 @@ const newAdmin = async () => {
 }
 
 describe('admin', () => {
+  it('overview counts coins, users and fees; top balances are sorted', async () => {
+    const admin = await newAdmin()
+    const rich = await newUser()
+    await adminAdjustCoins(admin, {
+      userId: rich.id,
+      amount: 7_000,
+      reason: 'test top-up',
+      idempotencyKey: crypto.randomUUID(),
+    })
+    const o = await adminOverview()
+    expect(o.users.total).toBeGreaterThanOrEqual(2)
+    expect(o.users.signedUpToday).toBe(o.users.total)
+    expect(o.coins.inWallets).toBeGreaterThanOrEqual(12_000)
+    expect(o.coins.bonusesIssued).toBe(o.users.total * 5_000)
+    expect(o.coins.adjustmentsNet).toBe(7_000)
+    expect(o.rooms).toMatchObject({ live: 0, roundsInPlay: 0, players: 0 })
+    expect(o.platformFee).toMatchObject({ total: 0, today: 0 })
+    const top = await adminTopBalances(5)
+    expect(top[0]).toMatchObject({ id: rich.id, balance: 12_000 })
+    expect(top.every((u, i) => i === 0 || (top[i - 1]?.balance ?? 0) >= u.balance)).toBe(true)
+  })
+
   it('finds users by phone, name and id, with a same-IP signal', async () => {
     const a = await newUser('10.9.5.5')
     await newUser('10.9.5.5')

@@ -1,6 +1,6 @@
 import { roomMembers, rooms } from '@jhandi/db/schema/rooms'
 import { users } from '@jhandi/db/schema/users'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 import { db } from '#lib/db'
 
 export const findRoom = async (roomId: string) => {
@@ -66,4 +66,19 @@ export const revokeMemberAccess = async (roomId: string, userId: string) => {
     .update(roomMembers)
     .set({ removedAt: sql`now()`, leftAt: sql`now()` })
     .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)))
+}
+
+// Rooms the DB still thinks are running (OPEN or PAUSED).
+export const findOpenRooms = async () =>
+  db
+    .select({ id: rooms.id, hostId: rooms.hostId, name: rooms.name })
+    .from(rooms)
+    .where(ne(rooms.status, 'CLOSED'))
+
+// Closing a room seats nobody: every member still marked present is marked as left.
+export const markAllMembersLeft = async (roomId: string) => {
+  await db
+    .update(roomMembers)
+    .set({ leftAt: sql`now()` })
+    .where(and(eq(roomMembers.roomId, roomId), isNull(roomMembers.leftAt)))
 }

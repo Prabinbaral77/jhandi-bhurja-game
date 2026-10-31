@@ -2,10 +2,14 @@ import {
   adminAdjustCoinsInputSchema,
   adminLedgerEntrySchema,
   adminLedgerInputSchema,
+  adminOverviewSchema,
   adminRoomSchema,
+  adminRoomsInputSchema,
+  adminRoundSchema,
   adminSearchUsersInputSchema,
   adminSetStatusInputSchema,
   adminSettingsSchema,
+  adminTopBalancesInputSchema,
   adminUpdateSettingInputSchema,
   adminUserSchema,
   auditEntrySchema,
@@ -21,7 +25,10 @@ import {
   adminGetSettings,
   adminGetUser,
   adminListRooms,
+  adminOverview,
+  adminRoomRounds,
   adminSearchUsers,
+  adminTopBalances,
   adminSetUserStatus,
   adminUpdateSetting,
   adminUserLedger,
@@ -51,7 +58,19 @@ export const adminRouter = router({
     .input(adminLedgerInputSchema)
     .output(page(adminLedgerEntrySchema))
     .query(({ input }) => adminUserLedger(input.userId, input)),
-  rooms: adminProcedure.output(z.array(adminRoomSchema)).query(() => adminListRooms()),
+  overview: adminProcedure.output(adminOverviewSchema).query(() => adminOverview()),
+  topBalances: adminProcedure
+    .input(adminTopBalancesInputSchema)
+    .output(z.array(adminUserSchema))
+    .query(({ input }) => adminTopBalances(input.limit)),
+  rooms: adminProcedure
+    .input(adminRoomsInputSchema)
+    .output(z.array(adminRoomSchema))
+    .query(({ input }) => adminListRooms(input.scope)),
+  roomRounds: adminProcedure
+    .input(z.object({ roomId: z.string() }))
+    .output(z.array(adminRoundSchema))
+    .query(({ input }) => adminRoomRounds(input.roomId)),
   settings: adminProcedure.output(adminSettingsSchema).query(() => adminGetSettings()),
   updateSetting: adminProcedure
     .input(adminUpdateSettingInputSchema)

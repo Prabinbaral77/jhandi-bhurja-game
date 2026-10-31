@@ -7,6 +7,7 @@ export const adminUserSchema = z.object({
   id: z.string(),
   displayName: z.string(),
   phone: z.string().nullable(),
+  email: z.string().nullable(),
   status: userStatusSchema,
   isAdmin: z.boolean(),
   balance: z.number(),
@@ -55,7 +56,77 @@ export const adminRoomSchema = z.object({
   host: z.object({ id: z.string(), displayName: z.string() }),
   bankBalance: z.number(),
   rounds: z.number(),
+  // Members currently seated (host + players + spectators) — 0 once closed.
+  members: z.number(),
+  // Platform fee collected from this room's settled rounds so far.
+  platformFee: z.number(),
+  // Total losing stakes / winnings paid across settled rounds (what the fee came from).
+  losingStakes: z.number(),
+  winningsPaid: z.number(),
+  // Whether a round is in BETTING/LOCKED right now.
+  roundInPlay: z.boolean(),
+  lastRoundAt: z.number().nullable(),
   createdAt: z.number(),
+})
+
+export const adminRoomsInputSchema = z.object({
+  // 'live' = OPEN or PAUSED rooms; 'all' includes closed rooms (latest 200).
+  scope: z.enum(['live', 'all']).default('live'),
+})
+
+// One settled/voided round with the money that moved (docs/game-rules.md §4).
+export const adminRoundSchema = z.object({
+  roundId: z.string(),
+  roundNo: z.number(),
+  status: z.enum(['BETTING', 'LOCKED', 'SETTLED', 'VOIDED']),
+  dice: z.array(z.string()).nullable(),
+  bets: z.number(),
+  staked: z.number(),
+  losingStakes: z.number(),
+  winningsPaid: z.number(),
+  platformFee: z.number(),
+  startedAt: z.number(),
+  settledAt: z.number().nullable(),
+})
+
+// Live operator dashboard (docs/architecture.md §7 admin). Cached for a few seconds.
+export const adminOverviewSchema = z.object({
+  generatedAt: z.number(),
+  rooms: z.object({
+    live: z.number(),
+    roundsInPlay: z.number(),
+    // Members seated in live rooms right now, by role.
+    hosts: z.number(),
+    players: z.number(),
+    spectators: z.number(),
+  }),
+  platformFee: z.object({
+    total: z.number(),
+    today: z.number(),
+    last7Days: z.number(),
+    roundsToday: z.number(),
+  }),
+  coins: z.object({
+    // Sum of all user wallets.
+    inWallets: z.number(),
+    inRoomBanks: z.number(),
+    inEscrow: z.number(),
+    // Bonuses issued so far (sign-up + daily) and admin adjustments net.
+    bonusesIssued: z.number(),
+    adjustmentsNet: z.number(),
+  }),
+  users: z.object({
+    total: z.number(),
+    signedUpToday: z.number(),
+    betToday: z.number(),
+    frozenOrBanned: z.number(),
+  }),
+  // Platform fee per Kathmandu day, newest first.
+  feeByDay: z.array(z.object({ date: z.string(), rounds: z.number(), fee: z.number() })),
+})
+
+export const adminTopBalancesInputSchema = z.object({
+  limit: z.number().int().min(1).max(200).default(50),
 })
 
 export const adminSettingsSchema = z.record(z.string(), z.number())

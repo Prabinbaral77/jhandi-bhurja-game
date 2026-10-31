@@ -82,7 +82,7 @@
 
 ## 8. Deploy-day checklist
 
-1. `NODE_ENV=production`; `WEB_ORIGIN=https://…`; `TRUST_PROXY=1` behind one load balancer.
+1. `NODE_ENV=production`; `WEB_ORIGIN=https://…`; `TRUST_PROXY=1` behind one load balancer; `ADMIN_EMAILS=<the one admin's Google e-mail>`; `REDIS_URL` (Upstash/ElastiCache in Mumbai) on API and game server.
 2. Fresh `AUTH_SECRET` (`openssl rand -hex 32`); never reuse the development one.
 3. `GOOGLE_CLIENT_ID` + `VITE_GOOGLE_CLIENT_ID`; add the production origin in Google Cloud → Credentials → Authorized JavaScript origins; publish the OAuth consent screen.
 4. Supabase: session pooler URL, Data API off, backups on; run `pnpm db:migrate`.

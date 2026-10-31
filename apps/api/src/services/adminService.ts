@@ -1,23 +1,31 @@
 import { SETTING_KEYS } from '@jhandi/db/settings'
+import { SYMBOLS } from '@jhandi/game-rules/symbols'
 import { getOrCreateAccount } from '@jhandi/ledger/accounts'
 import { postTransaction } from '@jhandi/ledger/postTransaction'
 import { SYSTEM_ACCOUNT_IDS } from '@jhandi/ledger/systemAccounts'
 import { AppError } from '@jhandi/protocol/appError'
 import type { z } from 'zod'
 import type {
+  adminOverviewSchema,
   adminRoomSchema,
+  adminRoundSchema,
   adminUserSchema,
   auditEntrySchema,
   collusionFlagSchema,
 } from '@jhandi/protocol/admin'
 import { db } from '#lib/db'
+import { cached } from '#lib/cache'
 import {
   collusionReport,
   countSameIp,
+  feeByDay,
   getUserForAdmin,
   listLedgerForUser,
   listRoomsForAdmin,
+  listRoundsForAdmin,
   listSettings,
+  listTopBalances,
+  overviewStats,
   searchUsers,
   setUserStatus,
   updateSetting,
@@ -25,9 +33,12 @@ import {
 import { listAudit, writeAudit } from '#repositories/auditRepository'
 import { revokeAllRefreshTokens } from '#repositories/refreshTokenRepository'
 import { invalidateSettings } from '#services/settingsService'
+import { kathmanduDayStart } from '#utils/nepalTime'
 
 type AdminUser = z.infer<typeof adminUserSchema>
 type AdminRoom = z.infer<typeof adminRoomSchema>
+type AdminRound = z.infer<typeof adminRoundSchema>
+type AdminOverview = z.infer<typeof adminOverviewSchema>
 type AuditEntry = z.infer<typeof auditEntrySchema>
 type CollusionFlag = z.infer<typeof collusionFlagSchema>
 
@@ -37,6 +48,7 @@ const toAdminUser = async (
   id: row.id,
   displayName: row.displayName,
   phone: row.phone,
+  email: row.email,
   status: row.status,
   isAdmin: row.isAdmin,
   balance: row.balance,
@@ -124,8 +136,8 @@ export const adminUserLedger = async (
   return { items, nextCursor: rows.length > page.limit && last ? last.id : null }
 }
 
-export const adminListRooms = async (): Promise<AdminRoom[]> =>
-  (await listRoomsForAdmin()).map((r) => ({
+export const adminListRooms = async (scope: 'live' | 'all' = 'live'): Promise<AdminRoom[]> =>
+  (await listRoomsForAdmin(scope)).map((r) => ({
     roomId: r.id,
     name: r.name,
     visibility: r.visibility,
@@ -133,8 +145,75 @@ export const adminListRooms = async (): Promise<AdminRoom[]> =>
     host: { id: r.hostId, displayName: r.hostName },
     bankBalance: r.bankBalance,
     rounds: r.rounds,
+    members: r.members,
+    platformFee: r.platformFee,
+    losingStakes: r.losingStakes,
+    winningsPaid: r.winningsPaid,
+    roundInPlay: r.roundInPlay,
+    lastRoundAt: r.lastRoundAt ? new Date(r.lastRoundAt).getTime() : null,
     createdAt: r.createdAt.getTime(),
   }))
+
+export const adminRoomRounds = async (roomId: string): Promise<AdminRound[]> =>
+  (await listRoundsForAdmin(roomId)).map((r) => ({
+    roundId: r.id,
+    roundNo: r.roundNo,
+    status: r.status,
+    dice: r.dice ? r.dice.map((d) => SYMBOLS[d] ?? String(d)) : null,
+    bets: r.bets,
+    staked: r.staked,
+    losingStakes: r.losingStakes ?? 0,
+    winningsPaid: r.winningsPaid ?? 0,
+    platformFee: r.platformFee ?? 0,
+    startedAt: r.startedAt.getTime(),
+    settledAt: r.settledAt?.getTime() ?? null,
+  }))
+
+// Who holds the coins: wallets sorted by balance.
+export const adminTopBalances = async (limit: number): Promise<AdminUser[]> =>
+  Promise.all((await listTopBalances(limit)).map(toAdminUser))
+
+const OVERVIEW_TTL_SEC = 5
+const DAY_MS = 24 * 60 * 60 * 1000
+
+// Every number on the dashboard; one DB round trip, cached a few seconds (many admins / tabs).
+export const adminOverview = (): Promise<AdminOverview> =>
+  cached('admin:overview:v1', OVERVIEW_TTL_SEC, async () => {
+    const now = new Date()
+    const dayStart = kathmanduDayStart(now)
+    const weekStart = new Date(dayStart.getTime() - 6 * DAY_MS)
+    const [s, days] = await Promise.all([overviewStats(dayStart, weekStart), feeByDay(14)])
+    return {
+      generatedAt: now.getTime(),
+      rooms: {
+        live: s.liveRooms,
+        roundsInPlay: s.roundsInPlay,
+        hosts: s.hosts,
+        players: s.players,
+        spectators: s.spectators,
+      },
+      platformFee: {
+        total: s.feeTotal,
+        today: s.feeToday,
+        last7Days: s.feeWeek,
+        roundsToday: s.roundsToday,
+      },
+      coins: {
+        inWallets: s.inWallets,
+        inRoomBanks: s.inBanks,
+        inEscrow: s.inEscrow,
+        bonusesIssued: s.bonusesIssued,
+        adjustmentsNet: s.adjustmentsNet,
+      },
+      users: {
+        total: s.usersTotal,
+        signedUpToday: s.usersToday,
+        betToday: s.bettorsToday,
+        frozenOrBanned: s.frozenOrBanned,
+      },
+      feeByDay: days.map((d) => ({ date: d.date, rounds: d.rounds, fee: d.fee })),
+    }
+  })
 
 export const adminGetSettings = async (): Promise<Record<string, number>> =>
   Object.fromEntries((await listSettings()).map((r) => [r.key, Number(r.value)]))
@@ -157,7 +236,7 @@ export const adminUpdateSetting = async (
       data: { from: before, to: input.value },
     })
   })
-  invalidateSettings()
+  await invalidateSettings()
   return adminGetSettings()
 }
 

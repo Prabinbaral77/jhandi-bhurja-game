@@ -11,3 +11,9 @@ export const nextKathmanduMidnight = (now: Date): number => {
   const local = now.getTime() + NEPAL_OFFSET_MS
   return Math.floor(local / DAY_MS) * DAY_MS + DAY_MS - NEPAL_OFFSET_MS
 }
+
+// Start of the current Kathmandu calendar day, as a Date.
+export const kathmanduDayStart = (now: Date): Date => {
+  const local = now.getTime() + NEPAL_OFFSET_MS
+  return new Date(Math.floor(local / DAY_MS) * DAY_MS - NEPAL_OFFSET_MS)
+}

@@ -34,6 +34,7 @@ export const insertUserWithIdentity = async (
     subject: string
     ageConfirmedAt: Date | null
     signupIpHash: string | null
+    email: string | null
   },
 ): Promise<User> => {
   const [user] = await tx
@@ -44,6 +45,7 @@ export const insertUserWithIdentity = async (
       avatarUrl: input.avatarUrl,
       ageConfirmedAt: input.ageConfirmedAt,
       signupIpHash: input.signupIpHash,
+      email: input.email,
     })
     .returning()
   if (!user) throw new Error('User insert returned nothing')
@@ -67,4 +69,26 @@ export const updateUser = async (
     .where(eq(users.id, id))
     .returning()
   return row
+}
+
+export const findUserByEmail = async (email: string): Promise<User | undefined> => {
+  const [row] = await db.select().from(users).where(eq(users.email, email.toLowerCase()))
+  return row
+}
+
+export const setUserEmail = async (id: string, email: string): Promise<void> => {
+  await db.update(users).set({ email: email.toLowerCase() }).where(eq(users.id, id))
+}
+
+export const setUserAdmin = async (
+  conn: DbOrTx,
+  id: string,
+  isAdmin: boolean,
+): Promise<boolean> => {
+  const rows = await conn
+    .update(users)
+    .set({ isAdmin })
+    .where(eq(users.id, id))
+    .returning({ id: users.id })
+  return rows.length === 1
 }

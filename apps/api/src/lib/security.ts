@@ -1,7 +1,9 @@
 import type { NextFunction, Request, Response } from 'express'
 import rateLimit from 'express-rate-limit'
+import { RedisStore, type RedisReply } from 'rate-limit-redis'
 import helmet from 'helmet'
 import { env } from '#lib/env'
+import { redis } from '#lib/redis'
 
 /**
  * HTTP hardening for the JSON API (docs/security.md). The web app is a separate static site
@@ -20,6 +22,17 @@ export const securityHeaders = helmet({
   xFrameOptions: { action: 'deny' },
 })
 
+// With Redis the budgets are shared by every API node; without it, per process.
+const store = (prefix: string) => {
+  if (!redis) return undefined
+  const client = redis
+  return new RedisStore({
+    prefix: `jb:rl:${prefix}:`,
+    sendCommand: (command: string, ...args: string[]) =>
+      client.call(command, ...args) as Promise<RedisReply>,
+  })
+}
+
 const limiterOptions = {
   standardHeaders: 'draft-7' as const,
   legacyHeaders: false,
@@ -29,6 +42,7 @@ const limiterOptions = {
 // Everything: a per-IP budget that no honest player gets near.
 export const globalRateLimit = rateLimit({
   ...limiterOptions,
+  store: store('global'),
   windowMs: 60_000,
   limit: env.RATE_LIMIT_PER_MINUTE,
 })
@@ -36,6 +50,7 @@ export const globalRateLimit = rateLimit({
 // Sign-in, refresh, invite codes: credential guessing targets get a much smaller budget.
 export const authRateLimit = rateLimit({
   ...limiterOptions,
+  store: store('auth'),
   windowMs: 60_000,
   limit: env.AUTH_RATE_LIMIT_PER_MINUTE,
 })

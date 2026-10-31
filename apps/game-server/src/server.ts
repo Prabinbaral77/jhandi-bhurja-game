@@ -10,7 +10,7 @@ import { sql } from '#lib/db'
 import { env } from '#lib/env'
 import { logger } from '#lib/logger'
 import { isRoomLive } from '#lib/roomRegistry'
-import { voidUnfinishedRounds } from '#services/roundService'
+import { closeAbandonedRooms, voidUnfinishedRounds } from '#services/roundService'
 import {
   MAX_WS_PAYLOAD_BYTES,
   guardMatchmakeRequests,
@@ -61,6 +61,8 @@ server.onShutdown(async () => {
 await server.listen(env.GAME_SERVER_PORT)
 if (server.transport.server) guardMatchmakeRequests(server.transport.server)
 // After listen: the matchmaker is booted, so other nodes' rooms are visible in the registry.
-// Rounds left open by a crashed node are refunded; rounds of live rooms are kept.
+// Rounds left open by a crashed node are refunded and their rooms closed (bank back to the
+// host); rounds and rooms that are live on another node are kept.
 await voidUnfinishedRounds(isRoomLive)
-logger.info({ port: env.GAME_SERVER_PORT, shared }, 'game-server listening')
+const closedAbandoned = await closeAbandonedRooms(isRoomLive)
+logger.info({ port: env.GAME_SERVER_PORT, shared, closedAbandoned }, 'game-server listening')

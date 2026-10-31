@@ -17,6 +17,7 @@
     "test": "vitest run --passWithNoTests",
     "reconcile": "tsx --env-file=../../.env src/scripts/reconcile.ts",
     "admin:grant": "tsx --env-file=../../.env scripts/grantAdmin.ts",
+    "admin:revoke": "tsx --env-file=../../.env scripts/revokeAdmin.ts",
     "dev:topup": "tsx --env-file=../../.env scripts/devTopUp.ts"
   },
   "devDependencies": {
@@ -40,6 +41,7 @@
     "ioredis": "^6.0.0",
     "jose": "^6.2.13",
     "pino": "^10.4.0",
+    "rate-limit-redis": "^6.0.2",
     "zod": "^4.6.7"
   }
 }

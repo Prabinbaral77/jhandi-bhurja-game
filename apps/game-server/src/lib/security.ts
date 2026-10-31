@@ -26,7 +26,6 @@ export const refuseForeignOrigins: BeforeUpgradeHandler = (request) => {
 }
 
 // Per-IP budget for matchmaking requests (seat reservations are the expensive part).
-const MATCHMAKE_PER_MINUTE = 60
 const hits = new Map<string, { count: number; resetAt: number }>()
 
 const clientIp = (req: IncomingMessage): string => {
@@ -54,7 +53,7 @@ const overBudget = (ip: string): boolean => {
     return false
   }
   entry.count += 1
-  return entry.count > MATCHMAKE_PER_MINUTE
+  return entry.count > env.MATCHMAKE_RATE_LIMIT_PER_MINUTE
 }
 
 const reject = (res: ServerResponse, status: number, error: string): void => {

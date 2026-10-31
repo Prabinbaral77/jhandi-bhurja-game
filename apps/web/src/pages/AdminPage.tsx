@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import Button from '@/components/Button'
 import ErrorText from '@/components/ErrorText'
 import { useAuthStore } from '@/lib/authStore'
@@ -11,8 +11,9 @@ import { formatCoins, formatDateTime, formatSignedCoins } from '@/utils/format'
  * Every mutation here is written to the audit log by the API.
  */
 
-type Tab = 'users' | 'rooms' | 'settings' | 'audit' | 'collusion'
-const TABS: Tab[] = ['users', 'rooms', 'settings', 'audit', 'collusion']
+type Tab = 'overview' | 'rooms' | 'coins' | 'users' | 'settings' | 'audit' | 'collusion'
+const TABS: Tab[] = ['overview', 'rooms', 'coins', 'users', 'settings', 'audit', 'collusion']
+const LIVE_REFRESH_MS = 10_000
 
 const input = 'rounded-lg border border-cream/20 bg-wood px-3 py-2 text-sm'
 const tabClass = (active: boolean) =>
@@ -20,7 +21,7 @@ const tabClass = (active: boolean) =>
 
 export default function AdminPage() {
   const auth = useAuthStore((s) => s.auth)
-  const [tab, setTab] = useState<Tab>('users')
+  const [tab, setTab] = useState<Tab>('overview')
   if (auth.status !== 'signedIn' || !auth.user.isAdmin) {
     return <p className="text-tika">Admins only.</p>
   }
@@ -41,8 +42,10 @@ export default function AdminPage() {
           </button>
         ))}
       </div>
-      {tab === 'users' && <UsersTab />}
+      {tab === 'overview' && <OverviewTab />}
       {tab === 'rooms' && <RoomsTab />}
+      {tab === 'coins' && <CoinsTab />}
+      {tab === 'users' && <UsersTab />}
       {tab === 'settings' && <SettingsTab />}
       {tab === 'audit' && <AuditTab />}
       {tab === 'collusion' && <CollusionTab />}
@@ -72,7 +75,7 @@ function UsersTab() {
         >
           <input
             className={`${input} min-w-0 flex-1`}
-            placeholder="phone, name or id"
+            placeholder="phone, e-mail, name or id"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
@@ -93,7 +96,7 @@ function UsersTab() {
                 }}
               >
                 <span className="font-semibold">{u.displayName}</span>{' '}
-                <span className="text-cream/60">{u.phone}</span>
+                <span className="text-cream/60">{u.email ?? u.phone}</span>
                 <span
                   className={`ml-2 text-xs ${u.status === 'ACTIVE' ? 'text-jamara' : 'text-tika'}`}
                 >
@@ -132,7 +135,7 @@ function UserDetail({ userId }: { userId: string }) {
       <section className="rounded-xl border border-cream/15 p-4">
         <h2 className="text-lg font-semibold">{data.displayName}</h2>
         <p className="text-sm text-cream/70">
-          {data.phone ?? '—'} · {data.id}
+          {data.email ?? data.phone ?? '—'} · {data.id}
         </p>
         <p className="mt-1 text-sm">
           Balance <b className="tabular-nums">{formatCoins(data.balance)}</b> · Status{' '}
@@ -216,39 +219,396 @@ function UserDetail({ userId }: { userId: string }) {
   )
 }
 
+function StatCard({
+  label,
+  value,
+  hint,
+  tone = 'default',
+}: {
+  label: string
+  value: string
+  hint?: string
+  tone?: 'default' | 'good' | 'warn'
+}) {
+  const color = tone === 'good' ? 'text-jamara' : tone === 'warn' ? 'text-marigold' : ''
+  return (
+    <div className="rounded-xl border border-cream/15 bg-cream/5 p-3">
+      <p className="text-xs uppercase tracking-wide text-cream/60">{label}</p>
+      <p className={`text-2xl font-bold tabular-nums ${color}`}>{value}</p>
+      {hint && <p className="text-xs text-cream/60">{hint}</p>}
+    </div>
+  )
+}
+
+function OverviewTab() {
+  const trpc = useTRPC()
+  const overview = useQuery({
+    ...trpc.admin.overview.queryOptions(),
+    refetchInterval: LIVE_REFRESH_MS,
+  })
+  const o = overview.data
+  if (!o) return <p className="text-sm text-cream/60">Loading…</p>
+  const seated = o.rooms.hosts + o.rooms.players + o.rooms.spectators
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-cream/50">
+        Live · refreshes every {LIVE_REFRESH_MS / 1000} s · as of{' '}
+        {formatDateTime(o.generatedAt, 'en')}
+      </p>
+      <section>
+        <h2 className="mb-2 font-semibold">Games right now</h2>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <StatCard label="Live rooms" value={String(o.rooms.live)} tone="good" />
+          <StatCard label="Rounds in play" value={String(o.rooms.roundsInPlay)} />
+          <StatCard
+            label="People seated"
+            value={String(seated)}
+            hint={`${o.rooms.hosts} hosts · ${o.rooms.players} players · ${o.rooms.spectators} watching`}
+          />
+          <StatCard label="Rounds settled today" value={String(o.platformFee.roundsToday)} />
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-2 font-semibold">Platform fee (coins)</h2>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <StatCard label="Today" value={formatCoins(o.platformFee.today)} tone="good" />
+          <StatCard label="Last 7 days" value={formatCoins(o.platformFee.last7Days)} />
+          <StatCard label="All time" value={formatCoins(o.platformFee.total)} />
+          <StatCard
+            label="Per settled round today"
+            value={
+              o.platformFee.roundsToday > 0
+                ? formatCoins(Math.round(o.platformFee.today / o.platformFee.roundsToday))
+                : '—'
+            }
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-2 font-semibold">Where the coins are</h2>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+          <StatCard label="In player wallets" value={formatCoins(o.coins.inWallets)} />
+          <StatCard label="In room banks" value={formatCoins(o.coins.inRoomBanks)} />
+          <StatCard label="At stake (escrow)" value={formatCoins(o.coins.inEscrow)} />
+          <StatCard label="Bonuses issued" value={formatCoins(o.coins.bonusesIssued)} />
+          <StatCard
+            label="Admin adjustments (net)"
+            value={formatSignedCoins(o.coins.adjustmentsNet)}
+            tone={o.coins.adjustmentsNet !== 0 ? 'warn' : 'default'}
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-2 font-semibold">Users</h2>
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <StatCard label="Total" value={String(o.users.total)} />
+          <StatCard label="Signed up today" value={String(o.users.signedUpToday)} />
+          <StatCard label="Placed a bet today" value={String(o.users.betToday)} />
+          <StatCard
+            label="Frozen / banned"
+            value={String(o.users.frozenOrBanned)}
+            tone={o.users.frozenOrBanned > 0 ? 'warn' : 'default'}
+          />
+        </div>
+      </section>
+      <section>
+        <h2 className="mb-2 font-semibold">Fee by day (Kathmandu, last 14 days)</h2>
+        <table className="w-full max-w-md text-sm">
+          <thead className="text-left text-cream/60">
+            <tr>
+              <th className="p-1">Day</th>
+              <th className="p-1 text-right">Rounds</th>
+              <th className="p-1 text-right">Fee</th>
+            </tr>
+          </thead>
+          <tbody>
+            {o.feeByDay.map((d) => (
+              <tr key={d.date} className="border-t border-cream/10">
+                <td className="p-1">{d.date}</td>
+                <td className="p-1 text-right tabular-nums">{d.rounds}</td>
+                <td className="p-1 text-right tabular-nums">{formatCoins(d.fee)}</td>
+              </tr>
+            ))}
+            {o.feeByDay.length === 0 && (
+              <tr>
+                <td className="p-1 text-cream/60" colSpan={3}>
+                  No settled rounds yet
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  )
+}
+
 function RoomsTab() {
   const trpc = useTRPC()
-  const rooms = useQuery(trpc.admin.rooms.queryOptions())
+  const [scope, setScope] = useState<'live' | 'all'>('live')
+  const [open, setOpen] = useState<string | null>(null)
+  const rooms = useQuery({
+    ...trpc.admin.rooms.queryOptions({ scope }),
+    refetchInterval: scope === 'live' ? LIVE_REFRESH_MS : false,
+  })
+  const totalFee = rooms.data?.reduce((n, r) => n + r.platformFee, 0) ?? 0
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="text-left text-cream/60">
-          <tr>
-            <th className="p-2">Room</th>
-            <th className="p-2">Host</th>
-            <th className="p-2">Type</th>
-            <th className="p-2">Status</th>
-            <th className="p-2 text-right">Bank</th>
-            <th className="p-2 text-right">Rounds</th>
-            <th className="p-2">Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rooms.data?.map((r) => (
-            <tr key={r.roomId} className="border-t border-cream/10">
-              <td className="p-2">
-                {r.name} <span className="text-cream/40">{r.roomId.slice(0, 8)}</span>
-              </td>
-              <td className="p-2">{r.host.displayName}</td>
-              <td className="p-2">{r.visibility}</td>
-              <td className="p-2">{r.status}</td>
-              <td className="p-2 text-right tabular-nums">{formatCoins(r.bankBalance)}</td>
-              <td className="p-2 text-right tabular-nums">{r.rounds}</td>
-              <td className="p-2">{formatDateTime(r.createdAt, 'en')}</td>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        {(['live', 'all'] as const).map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={tabClass(scope === s)}
+            onClick={() => {
+              setScope(s)
+            }}
+          >
+            {s === 'live' ? 'Live rooms' : 'All rooms'}
+          </button>
+        ))}
+        <span className="text-cream/60">
+          {rooms.data?.length ?? 0} rooms · fee collected {formatCoins(totalFee)}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-cream/60">
+            <tr>
+              <th className="p-2">Room</th>
+              <th className="p-2">Host</th>
+              <th className="p-2">Status</th>
+              <th className="p-2 text-right">Seated</th>
+              <th className="p-2 text-right">Bank</th>
+              <th className="p-2 text-right">Rounds</th>
+              <th className="p-2 text-right">Lost stakes</th>
+              <th className="p-2 text-right">Paid out</th>
+              <th className="p-2 text-right">Platform fee</th>
+              <th className="p-2">Last round</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rooms.data?.map((r) => (
+              <Fragment key={r.roomId}>
+                <tr
+                  className="cursor-pointer border-t border-cream/10 hover:bg-cream/5"
+                  onClick={() => {
+                    setOpen(open === r.roomId ? null : r.roomId)
+                  }}
+                >
+                  <td className="p-2">
+                    {r.name}{' '}
+                    <span className="text-cream/40">
+                      {r.visibility === 'PRIVATE' ? '🔒 ' : ''}
+                      {r.roomId.slice(0, 8)}
+                    </span>
+                  </td>
+                  <td className="p-2">{r.host.displayName}</td>
+                  <td className="p-2">
+                    {r.roundInPlay ? (
+                      <span className="text-jamara">● playing</span>
+                    ) : (
+                      <span className={r.status === 'CLOSED' ? 'text-cream/50' : ''}>
+                        {r.status.toLowerCase()}
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2 text-right tabular-nums">{r.members}</td>
+                  <td className="p-2 text-right tabular-nums">{formatCoins(r.bankBalance)}</td>
+                  <td className="p-2 text-right tabular-nums">{r.rounds}</td>
+                  <td className="p-2 text-right tabular-nums">{formatCoins(r.losingStakes)}</td>
+                  <td className="p-2 text-right tabular-nums">{formatCoins(r.winningsPaid)}</td>
+                  <td className="p-2 text-right font-semibold tabular-nums text-marigold">
+                    {formatCoins(r.platformFee)}
+                  </td>
+                  <td className="p-2">
+                    {r.lastRoundAt ? formatDateTime(r.lastRoundAt, 'en') : '—'}
+                  </td>
+                </tr>
+                {open === r.roomId && (
+                  <tr className="border-t border-cream/10 bg-cream/5">
+                    <td colSpan={10} className="p-2">
+                      <RoomRounds roomId={r.roomId} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+            {rooms.data?.length === 0 && (
+              <tr>
+                <td className="p-2 text-cream/60" colSpan={10}>
+                  No rooms
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function RoomRounds({ roomId }: { roomId: string }) {
+  const trpc = useTRPC()
+  const rounds = useQuery({
+    ...trpc.admin.roomRounds.queryOptions({ roomId }),
+    refetchInterval: LIVE_REFRESH_MS,
+  })
+  return (
+    <table className="w-full text-xs">
+      <thead className="text-left text-cream/60">
+        <tr>
+          <th className="p-1">Round</th>
+          <th className="p-1">Status</th>
+          <th className="p-1">Dice</th>
+          <th className="p-1 text-right">Bets</th>
+          <th className="p-1 text-right">Staked</th>
+          <th className="p-1 text-right">Lost stakes</th>
+          <th className="p-1 text-right">Paid out</th>
+          <th className="p-1 text-right">Fee</th>
+          <th className="p-1">Settled</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rounds.data?.map((r) => (
+          <tr key={r.roundId} className="border-t border-cream/10">
+            <td className="p-1">#{r.roundNo}</td>
+            <td className="p-1">{r.status.toLowerCase()}</td>
+            <td className="p-1">{r.dice?.map((d) => d.toLowerCase()).join(' ') ?? '—'}</td>
+            <td className="p-1 text-right tabular-nums">{r.bets}</td>
+            <td className="p-1 text-right tabular-nums">{formatCoins(r.staked)}</td>
+            <td className="p-1 text-right tabular-nums">{formatCoins(r.losingStakes)}</td>
+            <td className="p-1 text-right tabular-nums">{formatCoins(r.winningsPaid)}</td>
+            <td className="p-1 text-right tabular-nums text-marigold">
+              {formatCoins(r.platformFee)}
+            </td>
+            <td className="p-1">{r.settledAt ? formatDateTime(r.settledAt, 'en') : '—'}</td>
+          </tr>
+        ))}
+        {rounds.data?.length === 0 && (
+          <tr>
+            <td className="p-1 text-cream/60" colSpan={9}>
+              No rounds yet
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  )
+}
+
+// Who holds the coins, and hand some out from here (same audited ledger adjustment as the
+// user card).
+function CoinsTab() {
+  const trpc = useTRPC()
+  const queryClient = useQueryClient()
+  const holders = useQuery({
+    ...trpc.admin.topBalances.queryOptions({ limit: 100 }),
+    refetchInterval: LIVE_REFRESH_MS,
+  })
+  const [target, setTarget] = useState<{ id: string; name: string } | null>(null)
+  const [amount, setAmount] = useState(1_000)
+  const [reason, setReason] = useState('')
+  const adjust = useMutation(
+    trpc.admin.adjustCoins.mutationOptions({
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: trpc.admin.pathKey() })
+        setTarget(null)
+      },
+    }),
+  )
+  const total = holders.data?.reduce((n, u) => n + u.balance, 0) ?? 0
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-cream/60">
+        Top {holders.data?.length ?? 0} wallets hold {formatCoins(total)} coins. Click a row to give
+        or take coins (audited). For other users, search in the Users tab.
+      </p>
+      {target && (
+        <section className="flex flex-wrap items-center gap-2 rounded-xl border border-marigold/40 p-3">
+          <span className="text-sm">
+            Adjust <b>{target.name}</b>
+          </span>
+          <input
+            type="number"
+            className={`${input} w-32`}
+            value={amount}
+            onChange={(e) => {
+              setAmount(Math.trunc(Number(e.target.value)))
+            }}
+          />
+          <input
+            className={`${input} min-w-0 flex-1`}
+            placeholder="reason (required)"
+            value={reason}
+            onChange={(e) => {
+              setReason(e.target.value)
+            }}
+          />
+          <Button
+            variant="secondary"
+            className="min-h-9 text-sm"
+            disabled={amount === 0 || reason.trim().length < 3 || adjust.isPending}
+            onClick={() => {
+              adjust.mutate({
+                userId: target.id,
+                amount,
+                reason,
+                idempotencyKey: crypto.randomUUID(),
+              })
+            }}
+          >
+            {amount >= 0 ? 'Give' : 'Take'} {formatCoins(Math.abs(amount))}
+          </Button>
+          <Button
+            variant="secondary"
+            className="min-h-9 text-sm"
+            onClick={() => {
+              setTarget(null)
+            }}
+          >
+            Cancel
+          </Button>
+          <ErrorText error={adjust.error} />
+        </section>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="text-left text-cream/60">
+            <tr>
+              <th className="p-2">#</th>
+              <th className="p-2">User</th>
+              <th className="p-2">Contact</th>
+              <th className="p-2">Status</th>
+              <th className="p-2 text-right">Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {holders.data?.map((u, i) => (
+              <tr
+                key={u.id}
+                className={`cursor-pointer border-t border-cream/10 hover:bg-cream/5 ${target?.id === u.id ? 'bg-cream/10' : ''}`}
+                onClick={() => {
+                  setTarget({ id: u.id, name: u.displayName })
+                }}
+              >
+                <td className="p-2 text-cream/50">{i + 1}</td>
+                <td className="p-2">
+                  {u.displayName}
+                  {u.isAdmin && <span className="ml-1 text-xs text-marigold">admin</span>}
+                </td>
+                <td className="p-2 text-cream/70">{u.email ?? u.phone ?? '—'}</td>
+                <td className={`p-2 ${u.status === 'ACTIVE' ? '' : 'text-tika'}`}>
+                  {u.status.toLowerCase()}
+                </td>
+                <td className="p-2 text-right font-semibold tabular-nums">
+                  {formatCoins(u.balance)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

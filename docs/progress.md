@@ -2,17 +2,17 @@
 
 > Updated after every task. Milestones are defined in [milestones.md](milestones.md).
 
-| Milestone                          | Status                                                             |
-| ---------------------------------- | ------------------------------------------------------------------ |
-| M0 Project setup                   | ✅ Done (engineering), art style guide pending                     |
-| M1 Core game rules                 | ✅ Done                                                            |
-| M2 Auth & wallet                   | ✅ Done                                                            |
-| M3 Single-room MVP                 | ✅ Done                                                            |
-| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL                  |
-| M5 Private rooms                   | ✅ Done                                                            |
-| M6 Heritage art, sound & Nepali UI | ✅ Done with in-house vector art                                   |
-| M7 Hardening & admin               | ✅ Done except hosted monitoring/2k load (pending review & commit) |
-| M8 Beta & launch                   | ⏳ Next                                                            |
+| Milestone                          | Status                                                          |
+| ---------------------------------- | --------------------------------------------------------------- |
+| M0 Project setup                   | ✅ Done (engineering), art style guide pending                  |
+| M1 Core game rules                 | ✅ Done                                                         |
+| M2 Auth & wallet                   | ✅ Done                                                         |
+| M3 Single-room MVP                 | ✅ Done                                                         |
+| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL               |
+| M5 Private rooms                   | ✅ Done                                                         |
+| M6 Heritage art, sound & Nepali UI | ✅ Done with in-house vector art                                |
+| M7 Hardening & admin               | ✅ Done except hosted monitoring/2k load (needs Mumbai hosting) |
+| M8 Beta & launch                   | ⏳ Next                                                         |
 
 ## M0 — Project setup
 
@@ -190,6 +190,26 @@ Branch: `feat/m7-hardening`.
 - Load 10 rooms × 5 players × 3 rounds: 150 bets, 0 errors, 0 unacked; ledger reconciles ✅. Bet ack p50 3.8 s / p95 6.5 s and settlement of all 10 rooms ≈ 10 s — dominated by ~100 ms per DB round trip from Nepal and the per-room serial queue; not a server-side ceiling. Same test on a server in Mumbai is the real number (M8).
 - Every admin action appears in the audit log ✅ (API tests)
 - Unit tests: ledger 10, game-rules 55, game-server 6, API 22 ✅
+
+## Admin dashboard, admin-by-e-mail, Redis cache, load test (2026-10-31)
+
+- [x] **Admin overview** (`admin.overview`, cached 5 s, auto-refresh 10 s in the UI): live rooms, rounds in play, people seated by role, platform fee today / 7 days / all time / per round, coins in wallets / room banks / escrow, bonuses issued, admin adjustments net, users total / new today / bet today / frozen, fee per Kathmandu day (14 days) — `apps/api/src/{repositories/adminRepository,services/adminService,controllers/adminRouter}.ts`, `packages/protocol/src/admin.ts`, `apps/web/src/pages/AdminPage.tsx`
+- [x] **Rooms tab**: live/all scope; per room seated members, bank, rounds, losing stakes, paid out, **platform fee**, playing indicator; click a row for every round (dice, bets, staked, fee) — `admin.rooms {scope}`, `admin.roomRounds`
+- [x] **Coins tab**: top-100 wallets (`admin.topBalances`), click a row to give/take coins with reason (ledger `ADJUSTMENT`, audited); user card still has the same action after a search by phone / e-mail / name / id
+- [x] **Admin by e-mail**: `users.email` (migration `0010_users_email.sql`, filled from the verified Google e-mail at sign-in); `ADMIN_EMAILS` allowlist synced at every Google sign-in (grant / revoke audited); `admin:grant` / `admin:revoke` scripts accept a phone or an e-mail — `apps/api/src/services/authService.ts`, `apps/api/scripts/{adminFlag,grantAdmin,revokeAdmin}.ts`
+- [x] **Redis** (`REDIS_URL`, optional): API rate-limit counters (`rate-limit-redis`), settings cache and admin overview cache shared across nodes with instant invalidation; in-memory fallback without Redis — `apps/api/src/lib/cache.ts`, `lib/security.ts`, `services/settingsService.ts`. Game server already used it for the room registry; verified with a local `redis-server`.
+- [x] **Abandoned rooms** are closed (bank back to the host, members marked left) at game-server boot when no live Colyseus room exists, and when an empty room disposes — `apps/game-server/src/services/roundService.ts` (`closeAbandonedRooms`), `controllers/jhandiRoom.ts` (`onDispose`). First run closed 165 stale rooms and returned 825,850 coins.
+- [x] `MATCHMAKE_RATE_LIMIT_PER_MINUTE` for load tests; tests 97 pass; lint/typecheck clean
+
+**Load test (2026-10-31, laptop in Nepal → Supabase Mumbai, session pooler, 5 DB connections per process, Redis on):**
+
+| Users (rooms × players) | Bet ack p50 / p95 | Settle all rooms | Errors / unacked |
+| ----------------------- | ----------------- | ---------------- | ---------------- |
+| 60 (10 × 5, 3 rounds)   | 3.8 s / 6.5 s     | 9–10 s           | 0 / 0            |
+| 220 (20 × 10, 2 rounds) | 13.7 s / 25.8 s   | 32–34 s          | 0 / 0            |
+| 440 (40 × 10, 2 rounds) | 26.7 s / 49.8 s   | 62–67 s          | 0 / 0            |
+
+Reading: nothing breaks (0 errors, ledger consistent), but latency grows linearly with load → the system is **DB-round-trip bound**: ~15 bets/s through 5 pooled connections at ~100 ms per round trip from Nepal. Comfortable today: ≈ 50–80 concurrent players (bet acknowledged within ~5 s). What moves the ceiling, in order: (1) host API + game server in Mumbai next to the DB (~1 ms round trips, ≈ 50–100× more bets/s on the same code); (2) raise the Supabase pooler **Pool Size** / compute and `DATABASE_POOL_MAX` accordingly (going over the pool size fails with `EMAXCONNSESSION`, see `docs/database.md`); (3) more game-server nodes behind Redis. The 2,000-user target must be re-measured after (1).
 
 ## Security hardening (2026-10-31)
 
