@@ -98,7 +98,7 @@ The platform takes a small fee, also in **virtual coins**:
 
 | Setting                     | Value           | Notes                                                  |
 | --------------------------- | --------------- | ------------------------------------------------------ |
-| `SIGNUP_BONUS`              | **5,500 coins** | Credited once, on the user's first successful sign-in  |
+| `SIGNUP_BONUS`              | **5,000 coins** | Credited once, on the user's first successful sign-in  |
 | `DAILY_BONUS`               | **10 coins**    | Claimable once per calendar day (Nepal time, UTC+5:45) |
 | `MIN_HOST_DEPOSIT`          | **5,000 coins** | Required to open any room (§2.4)                       |
 | `MIN_HOST_BANK_TO_CONTINUE` | 1,000 coins     | Below this the room pauses (§2.4)                      |
@@ -110,8 +110,8 @@ All values live in `platform_settings` and can be changed by an admin without a 
 **First-time user journey:**
 
 1. User signs in for the first time (phone OTP or Google).
-2. Server creates the user and their `USER:{userId}` account, then credits **5,500 coins** from `SYSTEM:BONUS` with idempotency key `signup:{userId}`, so the bonus can never be paid twice even if sign-up is retried.
-3. A short welcome screen shows the 5,500 coins and explains the two options:
+2. Server creates the user and their `USER:{userId}` account, then credits **5,000 coins** from `SYSTEM:BONUS` with idempotency key `signup:{userId}`, so the bonus can never be paid twice even if sign-up is retried.
+3. A short welcome screen shows the 5,000 coins and explains the two options:
    - **Play:** join any public room (or a private room by link/code) and bet.
    - **Host:** open a room right away by depositing 5,000 coins, keeping 500 coins in hand.
 4. From the next day, the user can claim 10 coins daily.
@@ -281,7 +281,7 @@ Flows:
 | Winning bet settles (winnings)                | `ROOM_BANK:room`     | `USER:player`         |
 | Platform fee on host's round profit           | `ROOM_BANK:room`     | `SYSTEM:PLATFORM_FEE` |
 | Room closes                                   | `ROOM_BANK:room`     | `USER:host`           |
-| Sign-up bonus (5,500, once)                   | `SYSTEM:BONUS`       | `USER:user`           |
+| Sign-up bonus (5,000, once)                   | `SYSTEM:BONUS`       | `USER:user`           |
 | Daily bonus (10, once per day)                | `SYSTEM:BONUS`       | `USER:user`           |
 
 Guarantees:
@@ -524,7 +524,7 @@ Detailed milestones, tasks and exit criteria are in [milestones.md](milestones.m
 | 4   | Private rooms     | Yes, in v1 — join only via invite link or 6-character room code               | §5.6      |
 | 5   | Platform          | **Web only** for v1 (mobile-first browser); no native apps                    | §4        |
 | 6   | Voice chat        | **No.** Text chat + emoji reactions only                                      | §6.1      |
-| 7   | Sign-up bonus     | **5,500 coins** on first sign-in (enough to host immediately)                 | §2.6      |
+| 7   | Sign-up bonus     | **5,000 coins** on first sign-in (enough to host immediately)                 | §2.6      |
 | 8   | Daily bonus       | **10 coins** per day                                                          | §2.6      |
 | 9   | Host deposit      | **5,000 coins** minimum                                                       | §2.4      |
 | 10  | Private room size | **20** members max                                                            | §5.6      |

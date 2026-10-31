@@ -9,7 +9,7 @@
 | --- | ------------------------------- | -------------------------- | ---------- | ----------------------------------------------------------------- |
 | M0  | Project setup                   | 1 week                     | —          | Monorepo, CI, local dev environment running                       |
 | M1  | Core game rules                 | 1 week                     | M0         | Dice, payouts, exposure, fair RNG — tested library                |
-| M2  | Auth & wallet                   | 2 weeks                    | M0         | Sign-in, 5,500 sign-up bonus, 10 daily bonus, double-entry ledger |
+| M2  | Auth & wallet                   | 2 weeks                    | M0         | Sign-in, 5,000 sign-up bonus, 10 daily bonus, double-entry ledger |
 | M3  | Single-room MVP                 | 2 weeks                    | M1, M2     | One public room playable end-to-end with placeholder art          |
 | M4  | Multi-room lobby & spectators   | 1.5 weeks                  | M3         | Live lobby, many rooms, spectate-then-join, transaction feed      |
 | M5  | Private rooms                   | 1 week                     | M4         | Invite link + room code, host controls, 20-member limit           |
@@ -82,14 +82,14 @@ gantt
 - Phone OTP + Google sign-in, JWT access/refresh tokens.
 - Tables: `users`, `accounts`, `transactions`, `ledger_entries`, `bonuses`, `platform_settings` (§7).
 - Double-entry ledger with idempotency keys and `balance >= 0` constraint (§5.4).
-- **Sign-up bonus: 5,500 coins** credited automatically on first sign-in (`signup:{userId}`).
+- **Sign-up bonus: 5,000 coins** credited automatically on first sign-in (`signup:{userId}`).
 - **Daily bonus: 10 coins**, once per day in Nepal time.
-- Settings seeded: `SIGNUP_BONUS=5500`, `DAILY_BONUS=10`, `MIN_HOST_DEPOSIT=5000`, `MIN_HOST_BANK_TO_CONTINUE=1000`, `PLATFORM_FEE_BPS=200`, `PRIVATE_ROOM_MAX_MEMBERS=20`.
-- Basic web screens: sign in, welcome screen (shows 5,500 coins, "Play" / "Host"), wallet with transaction history.
+- Settings seeded: `SIGNUP_BONUS=5000`, `DAILY_BONUS=10`, `MIN_HOST_DEPOSIT=5000`, `MIN_HOST_BANK_TO_CONTINUE=1000`, `PLATFORM_FEE_BPS=200`, `PRIVATE_ROOM_MAX_MEMBERS=20`.
+- Basic web screens: sign in, welcome screen (shows 5,000 coins, "Play" / "Host"), wallet with transaction history.
 
 **Exit criteria**
 
-- A new user signs in and sees exactly 5,500 coins; repeating sign-up never pays twice.
+- A new user signs in and sees exactly 5,000 coins; repeating sign-up never pays twice.
 - Daily bonus can be claimed once per day only.
 - Nightly reconciliation script reports total balance = total coins issued.
 

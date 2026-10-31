@@ -120,7 +120,7 @@ const main = async () => {
   const ram = await signUp()
   const sita = await signUp()
   const gita = await signUp()
-  console.log('✓ signed up host, 2 players and 1 spectator (5,500 coins each)')
+  console.log('✓ signed up host, 2 players and 1 spectator (5,000 coins each)')
 
   const { roomId } = await trpc<{ roomId: string }>(
     'rooms.create',
@@ -137,7 +137,10 @@ const main = async () => {
   const spectator = await connect('gita', gita.token, roomId)
   seats = [hostSeat, ...players, spectator]
   await waitFor('snapshots', () => seats.every((s) => s.snapshot && s.wallet >= 0))
-  check(hostSeat.wallet === 500, `host wallet should be 500 after deposit, got ${hostSeat.wallet}`)
+  check(
+    hostSeat.wallet === 0,
+    `host wallet should be 0 after the 5,000 deposit, got ${hostSeat.wallet}`,
+  )
 
   for (const p of players) p.room.send('join_as_player', {})
   await waitFor(
@@ -211,7 +214,7 @@ const main = async () => {
 
   check(hostSeat.errors.includes('NOT_A_PLAYER'), 'host bet should be rejected')
   check(spectator.errors.includes('NOT_A_PLAYER'), 'spectator bet should be rejected')
-  check(spectator.wallet === 5_500, 'spectator wallet must be untouched')
+  check(spectator.wallet === 5_000, 'spectator wallet must be untouched')
   console.log('✓ host and spectator bets rejected')
 
   const bank = hostSeat.snapshot?.bankBalance ?? 0

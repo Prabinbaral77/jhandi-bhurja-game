@@ -97,7 +97,7 @@ const assertActive = (user: User): void => {
   if (user.status !== 'ACTIVE') throw new AppError('FORBIDDEN', 'This account is not active')
 }
 
-// New user + wallet account + 5,500 sign-up coins, all in one DB transaction.
+// New user + wallet account + the sign-up bonus (SIGNUP_BONUS setting), all in one DB transaction.
 const signUp = async (
   provider: AuthProvider,
   subject: string,

@@ -65,7 +65,7 @@ Every error, from tRPC or WebSocket:
 | `admin.*`                | —        | —                                                                   | Admin-only (`users.is_admin`, re-checked on every call): `searchUsers`, `getUser`, `setUserStatus` (ACTIVE/FROZEN/BANNED + reason; logs the user out), `adjustCoins` (ledger `ADJUSTMENT`, idempotent), `userLedger`, `rooms`, `settings`, `updateSetting`, `audit`, `collusion`. Every mutation writes `audit_log`. Admins are granted on the server with `pnpm --filter @jhandi/api admin:grant <phone>` |
 | `rounds.verify`          | query    | `{ roundId }`                                                       | `{ seedHash, serverSeed, dice, valid }`                                                                                                                                                                                                                                                                                                                                                                    |
 
-Sign-up bonus (5,500) has no procedure: it is credited inside `auth.verifyOtp` / `auth.google` when `isNewUser` is true, in the same DB transaction that creates the user.
+Sign-up bonus (5,000) has no procedure: it is credited inside `auth.verifyOtp` / `auth.google` when `isNewUser` is true, in the same DB transaction that creates the user.
 
 ### 2.0 Auth rules (implemented in M2)
 

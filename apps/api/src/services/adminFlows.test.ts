@@ -39,7 +39,7 @@ describe('admin', () => {
     expect(byPhone.map((u) => u.id)).toContain(a.id)
     expect((await adminSearchUsers(a.id))[0]?.id).toBe(a.id)
     const detail = await adminGetUser(a.id)
-    expect(detail).toMatchObject({ balance: 5_500, status: 'ACTIVE', sameIpAccounts: 1 })
+    expect(detail).toMatchObject({ balance: 5_000, status: 'ACTIVE', sameIpAccounts: 1 })
   })
 
   it('freezing a user logs them out, blocks coin actions, and is audited', async () => {
@@ -86,10 +86,10 @@ describe('admin', () => {
       reason: 'goodwill',
       idempotencyKey: key,
     })
-    expect((await getWallet(user.id)).balance).toBe(5_750)
+    expect((await getWallet(user.id)).balance).toBe(5_250)
     await adminAdjustCoins(admin, {
       userId: user.id,
-      amount: -5_750,
+      amount: -5_250,
       reason: 'claw back',
       idempotencyKey: crypto.randomUUID(),
     })

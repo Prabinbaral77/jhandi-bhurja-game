@@ -7,7 +7,7 @@ ON CONFLICT DO NOTHING;
 --> statement-breakpoint
 -- Platform settings (docs/architecture.md §2.6). Admin-editable later without a deploy.
 INSERT INTO "jhandi"."platform_settings" ("key", "value") VALUES
-  ('SIGNUP_BONUS', '5500'),
+  ('SIGNUP_BONUS', '5000'),
   ('DAILY_BONUS', '10'),
   ('MIN_HOST_DEPOSIT', '5000'),
   ('MIN_HOST_BANK_TO_CONTINUE', '1000'),

@@ -64,6 +64,13 @@
       "when": 1793424546909,
       "tag": "0008_result_display_16",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793426555831,
+      "tag": "0009_signup_bonus_5000",
+      "breakpoints": true
     }
   ]
 }

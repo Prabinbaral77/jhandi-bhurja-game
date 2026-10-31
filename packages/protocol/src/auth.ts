@@ -29,7 +29,10 @@ export const verifyOtpInputSchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'Code is 6 digits'),
 })
 
-export const googleSignInInputSchema = z.object({ idToken: z.string().min(1) })
+export const googleSignInInputSchema = z.object({
+  idToken: z.string().min(1),
+  ageConfirmed: z.literal(true),
+})
 
 export const signInOutputSchema = z.object({
   accessToken: z.string(),

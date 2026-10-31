@@ -68,19 +68,19 @@ Branch: `feat/m2-auth-wallet`.
 
 - [x] Schema + migrations: users, auth_identities, refresh_tokens, otp_codes, accounts, transactions, ledger_entries, bonuses (`0001_auth_wallet.sql`); seed system accounts + settings (`0002_seed_settings.sql`) — `packages/db/src/schema/{users,ledger,bonuses,all}.ts`, `packages/db/src/{ids,database,testing}.ts` (created), `packages/db/src/{client.ts,schema/platformSettings.ts}` (modified)
 - [x] Double-entry ledger: `postTransaction` (balanced, idempotent, row locks in id order, overdraft → `INSUFFICIENT_BALANCE`), accounts, history paging, reconciliation — `packages/ledger/src/{accounts,postTransaction,history,reconcile,pgError,systemAccounts}.ts`, `ledger.test.ts` (created/modified)
-- [x] Phone OTP sign-in with limits, sign-up bonus 5,500 in one DB transaction, Google sign-in (off until a client ID is set) — `apps/api/src/services/authService.ts`, `smsService.ts`, `repositories/{otp,user,bonus}Repository.ts` (created)
+- [x] Phone OTP sign-in with limits, sign-up bonus 5,000 in one DB transaction, Google sign-in (off until a client ID is set) — `apps/api/src/services/authService.ts`, `smsService.ts`, `repositories/{otp,user,bonus}Repository.ts` (created)
 - [x] Access JWT (15 min) + rotating refresh cookie with reuse detection — `apps/api/src/services/tokenService.ts`, `repositories/refreshTokenRepository.ts`, `lib/authCookie.ts` (created)
 - [x] Wallet: balance, history (cursor), daily bonus 10 once per Kathmandu day — `apps/api/src/services/walletService.ts`, `utils/nepalTime.ts` (created)
 - [x] Platform settings from DB with 1-min cache — `apps/api/src/services/settingsService.ts`, `repositories/settingsRepository.ts` (created)
 - [x] tRPC: `auth.*`, `me.*`, `wallet.*`; AppError → correct HTTP status; protected procedures — `apps/api/src/lib/trpc.ts`, `controllers/{auth,me,wallet,app}Router.ts` (created/modified)
 - [x] Reconciliation script — `apps/api/src/scripts/reconcile.ts` (`pnpm --filter @jhandi/api reconcile`)
-- [x] Web: sign-in (phone → code, dev code shown), welcome screen with 5,500 coins, home with balance + daily bonus, wallet history, NE/EN toggle, silent session refresh — `apps/web/src/{lib/{authStore,session,i18n,errors}.ts,components/*,pages/*,hooks/*,utils/format.ts}` (created/modified); M0 status page moved to `/status`
+- [x] Web: sign-in (phone → code, dev code shown), welcome screen with 5,000 coins, home with balance + daily bonus, wallet history, NE/EN toggle, silent session refresh — `apps/web/src/{lib/{authStore,session,i18n,errors}.ts,components/*,pages/*,hooks/*,utils/format.ts}` (created/modified); M0 status page moved to `/status`
 - [x] Tests on in-process Postgres (PGlite): ledger 10, API flows 13 — `apps/api/vitest.config.ts`, `apps/api/src/test/*`, `apps/api/src/services/accountFlows.test.ts`
 - [x] Docs — `docs/api-protocol.md` (auth rules §2.0), `docs/database.md` (otp_codes, reconciliation)
 
 **Exit criteria check (2026-10-20, Supabase Mumbai):**
 
-- New user signs in → exactly 5,500 coins ✅; signing in again (and two simultaneous sign-ups) never pays twice ✅
+- New user signs in → exactly 5,000 coins ✅; signing in again (and two simultaneous sign-ups) never pays twice ✅
 - Daily bonus once per Kathmandu day (second claim → 409 `ALREADY_CLAIMED`) ✅
 - Reconciliation: `ok: true`, 0 unbalanced, total 0, 0 drifted ✅
 - Refresh rotation and logout ✅

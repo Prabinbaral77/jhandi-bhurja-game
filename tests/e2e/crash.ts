@@ -83,17 +83,17 @@ const main = async () => {
   host.send('host_start_round', {})
   await sleep(2_500)
   player.send('place_bet', { symbol: 'CROWN', amount: 300, clientSeq: 1 })
-  for (let i = 0; i < 100 && wallet !== 5_200; i++) await sleep(100)
-  if (wallet !== 5_200) fail(`bet not taken (wallet ${wallet})`)
-  console.log('✓ 300 coins are in escrow (wallet 5,200)')
+  for (let i = 0; i < 100 && wallet !== 4_700; i++) await sleep(100)
+  if (wallet !== 4_700) fail(`bet not taken (wallet ${wallet})`)
+  console.log('✓ 300 coins are in escrow (wallet 4,700)')
 
   console.log('CRASH_NOW')
   // The server is killed and restarted now; on boot it must refund the open round.
   for (let i = 0; i < 120; i++) {
     await sleep(1_000)
     const { balance } = await trpc<{ balance: number }>('wallet.get', {}, playerToken, true)
-    if (balance === 5_500) {
-      console.log('✓ after restart the round was voided and 300 coins refunded (wallet 5,500)')
+    if (balance === 5_000) {
+      console.log('✓ after restart the round was voided and 300 coins refunded (wallet 5,000)')
       process.exit(0)
     }
   }

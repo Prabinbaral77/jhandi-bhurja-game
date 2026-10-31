@@ -27,18 +27,18 @@ afterEach(() => {
 })
 
 describe('sign-up and sign-in', () => {
-  it('gives a new user exactly 5,500 coins, once', async () => {
+  it('gives a new user exactly 5,000 coins, once', async () => {
     const phone = newPhone()
     const first = await signInByOtp(phone)
-    expect(first).toMatchObject({ isNewUser: true, signupBonus: 5_500 })
-    expect((await getWallet(first.user.id)).balance).toBe(5_500)
+    expect(first).toMatchObject({ isNewUser: true, signupBonus: 5_000 })
+    expect((await getWallet(first.user.id)).balance).toBe(5_000)
 
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(Date.now() + 61_000)
     const second = await signInByOtp(phone)
     expect(second).toMatchObject({ isNewUser: false, signupBonus: 0 })
     expect(second.user.id).toBe(first.user.id)
-    expect((await getWallet(first.user.id)).balance).toBe(5_500)
+    expect((await getWallet(first.user.id)).balance).toBe(5_000)
   })
 
   it('handles two concurrent sign-ups of the same new identity', async () => {
@@ -50,7 +50,7 @@ describe('sign-up and sign-in', () => {
     ])
     expect(a.user.id).toBe(b.user.id)
     expect([a.isNewUser, b.isNewUser].sort()).toEqual([false, true])
-    expect((await getWallet(a.user.id)).balance).toBe(5_500)
+    expect((await getWallet(a.user.id)).balance).toBe(5_000)
   })
 
   it('rejects a wrong code and locks after 5 wrong attempts', async () => {
@@ -121,15 +121,15 @@ describe('wallet', () => {
       dailyBonusAmount: 10,
     })
 
-    expect(await claimDailyBonus(user.id)).toEqual({ amount: 10, balance: 5_510 })
+    expect(await claimDailyBonus(user.id)).toEqual({ amount: 10, balance: 5_010 })
     await expect(claimDailyBonus(user.id)).rejects.toMatchObject({ code: 'ALREADY_CLAIMED' })
     const wallet = await getWallet(user.id)
-    expect(wallet).toMatchObject({ balance: 5_510, dailyBonusAvailable: false })
+    expect(wallet).toMatchObject({ balance: 5_010, dailyBonusAvailable: false })
     expect(wallet.nextDailyBonusAt).toBeGreaterThan(Date.now())
 
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime((wallet.nextDailyBonusAt ?? 0) + 1_000)
-    expect(await claimDailyBonus(user.id)).toEqual({ amount: 10, balance: 5_520 })
+    expect(await claimDailyBonus(user.id)).toEqual({ amount: 10, balance: 5_020 })
   })
 
   it('lists wallet transactions newest first', async () => {
@@ -138,7 +138,7 @@ describe('wallet', () => {
     const page = await listWalletTransactions(user.id, { limit: 20 })
     expect(page.items.map((tx) => [tx.kind, tx.amount])).toEqual([
       ['DAILY_BONUS', 10],
-      ['SIGNUP_BONUS', 5_500],
+      ['SIGNUP_BONUS', 5_000],
     ])
   })
 
