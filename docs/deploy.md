@@ -1,8 +1,49 @@
 # Deployment
 
-> How to put Jhandi Burja on a real domain. Written for the first launch at
-> **https://prabinbaral.com.np/game** (the game under `/game` on an existing site), with the
-> same recipe usable for a dedicated domain. Security steps are in `docs/security.md`.
+> How to put Jhandi Burja on a real domain. Security steps are in `docs/security.md`.
+
+## 0. The free stack (chosen for launch)
+
+Everything below costs nothing per month:
+
+| Need                        | Free service                                                                                                 | Limits that matter                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Server for API + game + web | **Oracle Cloud Always Free** VM in **Mumbai** (ap-mumbai-1): Ampere A1 up to 4 OCPU / 24 GB, or 2× AMD micro | Card needed for identity check, never charged on Always Free. ARM capacity in Mumbai is sometimes "out"; retry or take the AMD micro |
+| Database                    | **Supabase Free** (already in use)                                                                           | 500 MB, pooler Pool Size 15, project **pauses after 7 days without activity** (restore from dashboard)                               |
+| Redis                       | `redis-server` on the same VM                                                                                | none (Upstash free = 10k commands/day, too few for rate limits)                                                                      |
+| TLS                         | Let's Encrypt via certbot                                                                                    | auto-renews                                                                                                                          |
+| DNS                         | your registrar, or Cloudflare Free                                                                           | one A record `game.prabinbaral.com.np → VM IP`                                                                                       |
+| Google sign-in              | Google Identity Services                                                                                     | free                                                                                                                                 |
+| Errors / uptime (optional)  | Sentry Free, UptimeRobot Free                                                                                | 5k errors/month; 50 monitors                                                                                                         |
+
+URL: **https://game.prabinbaral.com.np** — web at `/`, API at `/api/`, game server at `/ws/`,
+all on the one VM behind nginx. (Serving it at `prabinbaral.com.np/game` instead needs the
+host of the main site to proxy `/game/*` to this VM; if the domain moves to Cloudflare Free a
+Worker route can do that. §2 layout A has that config.)
+
+Why not Render/Railway/Fly free tiers: they sleep after inactivity or expire (first player waits
+~1 min for the server to wake), have no Mumbai region on free, and a WebSocket game server must
+stay up. A free always-on VM next to the database is the only free option that plays well.
+
+### Steps
+
+1. **Oracle Cloud**: create an Always Free account → Compute → Create instance → Image Ubuntu 24.04, Shape "Always Free eligible" (VM.Standard.A1.Flex 2 OCPU/12 GB is plenty), region Mumbai, add your SSH key. In the VCN's **Security List** add ingress rules for TCP 80 and 443 from 0.0.0.0/0.
+2. **DNS**: A record `game` → the VM's public IP at your domain registrar (TTL short).
+3. **On the VM**:
+   ```bash
+   ssh ubuntu@<ip>
+   sudo git clone https://github.com/Prabinbaral77/dashain-game.git /srv/jhandi
+   sudo bash /srv/jhandi/deploy/oracle/setup.sh game.prabinbaral.com.np you@example.com
+   sudo nano /srv/jhandi/.env     # DATABASE_URL, AUTH_SECRET, GOOGLE ids, ADMIN_EMAILS
+   sudo bash /srv/jhandi/deploy/oracle/deploy.sh
+   ```
+   `setup.sh` installs Node 22, pnpm, nginx, Redis, certbot, the firewall, the systemd services
+   and the nginx site; `deploy.sh` pulls, builds, migrates and restarts (run it after every push).
+4. **Google Cloud** → Credentials → OAuth client → Authorized JavaScript origins: `https://game.prabinbaral.com.np`.
+5. **Supabase**: Data API off, Pool Size ≥ 15 (API 5 + game 5 + headroom).
+6. Open the site on a phone: Google sign-in → host a room → play. Admin at `/admin`.
+
+Files: `deploy/oracle/{setup.sh,deploy.sh,nginx-game.conf,jhandi-api.service,jhandi-game.service,.env.production.example}`.
 
 ## 1. Pieces and where they run
 
