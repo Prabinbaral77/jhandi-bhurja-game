@@ -1,7 +1,8 @@
 import type { Request, Response } from 'express'
 import { env } from '#lib/env'
 
-const REFRESH_COOKIE = 'jb_rt'
+// `__Secure-` prefix: browsers refuse to set it over plain http, so it can't be downgraded.
+const REFRESH_COOKIE = env.NODE_ENV === 'production' ? '__Secure-jb_rt' : 'jb_rt'
 // Only sent to the tRPC endpoint, never to static assets.
 const COOKIE_PATH = '/v1/trpc'
 
@@ -15,7 +16,8 @@ export const readRefreshCookie = (req: Request): string | undefined => {
 export const setRefreshCookie = (res: Response, token: string, maxAgeMs: number): void => {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
+    // Secure everywhere except plain-http local development.
+    secure: env.NODE_ENV !== 'development',
     sameSite: 'lax',
     path: COOKIE_PATH,
     maxAge: maxAgeMs,

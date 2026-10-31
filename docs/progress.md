@@ -191,6 +191,18 @@ Branch: `feat/m7-hardening`.
 - Every admin action appears in the audit log ✅ (API tests)
 - Unit tests: ledger 10, game-rules 55, game-server 6, API 22 ✅
 
+## Security hardening (2026-10-31)
+
+Checklist and deploy steps: `docs/security.md`.
+
+- [x] API: `helmet` headers (HSTS in prod, nosniff, no-referrer, `X-Frame-Options: DENY`, CSP none for JSON), CORS locked to `WEB_ORIGIN`, foreign-`Origin` mutations → 403 (CSRF defence in depth), global `RATE_LIMIT_PER_MINUTE` (300) + `AUTH_RATE_LIMIT_PER_MINUTE` (30) on sign-in/refresh/invite paths, 64 KB body cap, header/request timeouts, `TRUST_PROXY` — `apps/api/src/lib/{security,env,authCookie}.ts`, `server.ts`; `security.test.ts`
+- [x] Refresh cookie: `__Secure-jb_rt`, `Secure` outside development, httpOnly, SameSite=Lax, path `/v1/trpc`
+- [x] Production guard rails at start: https `WEB_ORIGIN`, non-placeholder `AUTH_SECRET`, `GOOGLE_CLIENT_ID` required (console SMS refused)
+- [x] Game server: matchmaking CORS + `/matchmake/*` origin check + 60/min per-IP budget via a raw HTTP listener (Colyseus serves matchmaking ahead of Express), WebSocket upgrade refused for foreign origins, 16 KB frame cap, per-connection token bucket 20/s burst 40 (kick after 50 strikes) before Zod validation — `apps/game-server/src/lib/security.ts`, `utils/onValidatedMessage.ts`, `server.ts`
+- [x] Web: CSP meta in `index.html` (Vite env substitution for API/WS hosts), `public/_headers` for static hosts
+- [x] Verified with curl: foreign-origin POST 403 on both servers, same-origin 200, 70 KB body 413, auth burst 429, WS upgrade with foreign Origin 403; e2e smoke passes
+- [ ] `pnpm audit --prod`: `uuid` (moderate) and `elliptic` (low) remain inside `@colyseus/auth → grant`, unused at runtime
+
 ## Review changes after M6/M7 (2026-10-31)
 
 - [x] Dice are now real 3D in WebGL (three.js, lazy chunk ~235 kB gzip): courtyard floor, lights and shadows, brass cup, six cubes with faces drawn after the hand-carved yellow Nepali dice (red/black folk figures). Deterministic mini-physics per round (`lib/dicePhysics.ts`), textures from the same SVG as the board (`lib/diceTextures.ts`), `components/room/DiceScene.tsx`

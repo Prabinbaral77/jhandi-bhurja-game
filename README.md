@@ -14,6 +14,7 @@ Real-time, multi-room Jhandi Burja for Dashain, with Nepali heritage art. Virtua
 | [docs/database.md](docs/database.md)           | PostgreSQL schema                                    |
 | [docs/art-direction.md](docs/art-direction.md) | Brief for artists: palette, assets, cultural rules   |
 | [docs/conventions.md](docs/conventions.md)     | How code is written in this repo                     |
+| [docs/security.md](docs/security.md)           | Security checklist, threat model, deploy-day steps   |
 
 ## Requirements
 

@@ -11,16 +11,26 @@ import { env } from '#lib/env'
 import { logger } from '#lib/logger'
 import { isRoomLive } from '#lib/roomRegistry'
 import { voidUnfinishedRounds } from '#services/roundService'
+import {
+  MAX_WS_PAYLOAD_BYTES,
+  guardMatchmakeRequests,
+  refuseForeignOrigins,
+  restrictMatchmakerCors,
+} from '#lib/security'
 import { assertSingleColyseusCore } from '#utils/assertSingleColyseusCore'
 
 assertSingleColyseusCore()
+restrictMatchmakerCors()
 
 // With Redis every node shares one room registry and pub/sub, so the lobby lists rooms from all
 // nodes and a client is routed to the node that owns its room. Without it, one node only.
 const shared = env.REDIS_URL !== undefined
 const server = defineServer({
   greet: false,
-  transport: new WebSocketTransport(),
+  transport: new WebSocketTransport({
+    beforeUpgrade: refuseForeignOrigins,
+    maxPayload: MAX_WS_PAYLOAD_BYTES,
+  }),
   presence: shared ? new RedisPresence(env.REDIS_URL) : new LocalPresence(),
   driver: shared ? new RedisDriver(env.REDIS_URL) : new LocalDriver(),
   rooms: {
@@ -30,6 +40,8 @@ const server = defineServer({
     jhandi: defineRoom(JhandiRoom).filterBy(['dbRoomId']).enableRealtimeListing(),
   },
   express: (app) => {
+    app.disable('x-powered-by')
+    app.set('trust proxy', env.TRUST_PROXY)
     app.get('/health', (_req, res) => {
       const health: Health = {
         ok: true,
@@ -47,6 +59,7 @@ server.onShutdown(async () => {
 })
 
 await server.listen(env.GAME_SERVER_PORT)
+if (server.transport.server) guardMatchmakeRequests(server.transport.server)
 // After listen: the matchmaker is booted, so other nodes' rooms are visible in the registry.
 // Rounds left open by a crashed node are refunded; rounds of live rooms are kept.
 await voidUnfinishedRounds(isRoomLive)

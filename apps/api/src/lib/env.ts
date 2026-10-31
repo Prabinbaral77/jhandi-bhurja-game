@@ -5,6 +5,8 @@ const optionalString = z.preprocess(
   z.string().optional(),
 )
 
+const PLACEHOLDER_SECRET = /change-me|example|secret-test/i
+
 const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -24,12 +26,35 @@ const envSchema = z
     // Per-IP abuse limits for sign-in. Raised only for load/e2e tests.
     OTP_IP_REQUESTS_PER_HOUR: z.coerce.number().int().positive().default(10),
     OTP_IP_VERIFIES_PER_15MIN: z.coerce.number().int().positive().default(30),
+    // Global per-IP request budget (docs/security.md).
+    RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(300),
+    // Per-IP budget for sign-in / refresh / invite-code paths. Raised only for load/e2e tests.
+    AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
+    // Number of reverse proxies in front of the API (so req.ip is the real client). 0 = none.
+    TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
     GOOGLE_CLIENT_ID: optionalString,
   })
-  // Only the console sender exists so far; production must wait for a real SMS provider.
-  .refine((env) => env.NODE_ENV !== 'production', {
-    message: 'SMS_PROVIDER=console is not allowed in production; add a real SMS provider first',
-    path: ['SMS_PROVIDER'],
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return
+    // Production guard rails: refuse to start with development-only settings.
+    if (!env.WEB_ORIGIN.startsWith('https://')) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['WEB_ORIGIN'],
+        message: 'must be https:// in production',
+      })
+    }
+    if (PLACEHOLDER_SECRET.test(env.AUTH_SECRET)) {
+      ctx.addIssue({ code: 'custom', path: ['AUTH_SECRET'], message: 'looks like a placeholder' })
+    }
+    if (!env.GOOGLE_CLIENT_ID) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMS_PROVIDER'],
+        message:
+          'no real sign-in method: SMS_PROVIDER=console is not allowed in production and GOOGLE_CLIENT_ID is empty',
+      })
+    }
   })
 
 export type Env = z.infer<typeof envSchema>
