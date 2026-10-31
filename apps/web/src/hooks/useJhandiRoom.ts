@@ -3,6 +3,7 @@ import {
   chatBroadcastSchema,
   myBetsMessageSchema,
   reactionBroadcastSchema,
+  soundReactionBroadcastSchema,
   roomClosedMessageSchema,
   roomErrorMessageSchema,
   roomSnapshotSchema,
@@ -12,6 +13,7 @@ import {
   ROOM_CLIENT_MESSAGES as OUT,
   ROOM_SERVER_MESSAGES as IN,
   type REACTIONS,
+  type SoundReaction,
 } from '@jhandi/protocol/room'
 import type { Room } from '@colyseus/sdk'
 import { useQueryClient } from '@tanstack/react-query'
@@ -19,6 +21,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import type { z } from 'zod'
 import { gameClient } from '@/lib/gameClient'
 import { useRoomStore } from '@/lib/roomStore'
+import { reactionSfx } from '@/lib/sound'
 import { getValidAccessToken } from '@/lib/session'
 import { useTRPC } from '@/lib/trpc'
 
@@ -73,6 +76,10 @@ export const useJhandiRoom = (dbRoomId: string) => {
       on(room, IN.chat, chatBroadcastSchema, s.pushChat)
       on(room, IN.reaction, reactionBroadcastSchema, ({ emoji }) => {
         s.pushReaction(emoji)
+      })
+      on(room, IN.soundReaction, soundReactionBroadcastSchema, ({ displayName, sound }) => {
+        reactionSfx(sound)
+        s.pushSoundReaction(displayName, sound)
       })
       on(room, IN.error, roomErrorMessageSchema, ({ code, message }) => {
         s.set({ lastError: { code, message } })
@@ -146,6 +153,9 @@ export const useJhandiRoom = (dbRoomId: string) => {
     },
     react: (emoji: (typeof REACTIONS)[number]) => {
       send(OUT.reaction, { emoji })
+    },
+    playSound: (sound: SoundReaction) => {
+      send(OUT.soundReaction, { sound })
     },
     lockRoom: () => {
       send(OUT.hostLockRoom)

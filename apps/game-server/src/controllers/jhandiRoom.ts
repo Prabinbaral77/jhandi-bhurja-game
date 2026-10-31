@@ -13,6 +13,7 @@ import {
   emptyMessageSchema,
   placeBetMessageSchema,
   reactionMessageSchema,
+  soundReactionMessageSchema,
   removeMemberMessageSchema,
   ROOM_CLIENT_MESSAGES as IN,
   ROOM_SERVER_MESSAGES as OUT,
@@ -89,6 +90,7 @@ const joinOptionsSchema = z.object({ dbRoomId: z.uuid(), accessToken: z.string()
 
 const RECONNECT_WINDOW_SEC = 30
 const HOST_AWAY_CLOSE_MS = 2 * 60 * 1000
+const SOUND_MIN_INTERVAL_MS = 3_000
 const HISTORY_LENGTH = 20
 const CHAT_MIN_INTERVAL_MS = 1_000
 const SUMMARY_MIN_INTERVAL_MS = 1_000
@@ -138,6 +140,7 @@ export class JhandiRoom extends Room<{
   private readonly lostToday = new Map<string, { day: number; lost: number }>()
   private readonly names = new Map<string, string>()
   private readonly lastChatAt = new Map<string, number>()
+  private readonly lastSoundAt = new Map<string, number>()
   // Bets of the last 10 minutes, for the lobby's volume figure.
   private volume: { at: number; amount: number }[] = []
   private summaryTimer: Timer | undefined
@@ -367,6 +370,16 @@ export class JhandiRoom extends Room<{
       if (!this.allowChat(userId)) return
       this.broadcast(OUT.reaction, { userId, emoji: msg.emoji })
     })
+    onValidatedMessage(
+      this,
+      IN.soundReaction,
+      soundReactionMessageSchema,
+      (client: JhandiClient, msg) => {
+        const { userId, displayName } = this.authOf(client)
+        if (!this.allowSound(userId)) return
+        this.broadcast(OUT.soundReaction, { userId, displayName, sound: msg.sound })
+      },
+    )
   }
 
   // Queues a job and turns any failure into an `error` message for that client.
@@ -924,6 +937,14 @@ export class JhandiRoom extends Room<{
       const accountId = this.userAccounts.get(userId)
       if (accountId) this.wallets.set(userId, await balanceOf(accountId))
     }
+  }
+
+  // One sound per player every few seconds, so a room never turns into a noise machine.
+  private allowSound(userId: string): boolean {
+    const now = Date.now()
+    if (now - (this.lastSoundAt.get(userId) ?? 0) < SOUND_MIN_INTERVAL_MS) return false
+    this.lastSoundAt.set(userId, now)
+    return true
   }
 
   private allowChat(userId: string): boolean {

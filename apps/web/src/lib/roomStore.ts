@@ -21,6 +21,8 @@ interface RoomStore {
   feed: TxFeedMessage[]
   chat: ChatLine[]
   reactions: { id: number; emoji: string }[]
+  // Who played which sound, shown briefly on screen.
+  soundReactions: { id: number; displayName: string; sound: string }[]
   lastError: { code: string; message: string } | null
   closedReason: string | null
   reset: () => void
@@ -28,6 +30,7 @@ interface RoomStore {
   pushFeed: (entry: TxFeedMessage) => void
   pushChat: (line: ChatLine) => void
   pushReaction: (emoji: string) => void
+  pushSoundReaction: (displayName: string, sound: string) => void
 }
 
 const FEED_LIMIT = 30
@@ -44,6 +47,7 @@ const initial = {
   feed: [],
   chat: [],
   reactions: [],
+  soundReactions: [],
   lastError: null,
   closedReason: null,
 }
@@ -68,6 +72,13 @@ export const useRoomStore = create<RoomStore>((set) => ({
     set((s) => ({ reactions: [...s.reactions, { id, emoji }] }))
     setTimeout(() => {
       set((s) => ({ reactions: s.reactions.filter((r) => r.id !== id) }))
+    }, 2_500)
+  },
+  pushSoundReaction: (displayName, sound) => {
+    const id = ++reactionId
+    set((s) => ({ soundReactions: [...s.soundReactions, { id, displayName, sound }] }))
+    setTimeout(() => {
+      set((s) => ({ soundReactions: s.soundReactions.filter((r) => r.id !== id) }))
     }, 2_500)
   },
 }))

@@ -110,6 +110,7 @@ export const ROOM_CLIENT_MESSAGES = {
   hostRemoveMember: 'host_remove_member',
   chat: 'chat',
   reaction: 'reaction',
+  soundReaction: 'sound_reaction',
 } as const
 
 export const clientSeqSchema = z.number().int().nonnegative()
@@ -136,6 +137,24 @@ export const chatMessageSchema = z.object({ text: z.string().trim().min(1).max(2
 export const REACTIONS = ['🎉', '🙏', '😮', '😂', '🔥', '🪁'] as const
 export const reactionMessageSchema = z.object({ emoji: z.enum(REACTIONS) })
 
+// Fun sounds a player can play for the whole room (synthesised on each client, no files).
+export const SOUND_REACTIONS = [
+  'wow',
+  'ooh',
+  'laugh',
+  'cry',
+  'quack',
+  'fart',
+  'applause',
+  'boo',
+  'dhol',
+  'whistle',
+  'kiss',
+  'coins',
+] as const
+export type SoundReaction = (typeof SOUND_REACTIONS)[number]
+export const soundReactionMessageSchema = z.object({ sound: z.enum(SOUND_REACTIONS) })
+
 // ---------- Realtime: server → client ----------
 
 export const ROOM_SERVER_MESSAGES = {
@@ -147,6 +166,7 @@ export const ROOM_SERVER_MESSAGES = {
   txFeed: 'tx_feed',
   chat: 'chat',
   reaction: 'reaction',
+  soundReaction: 'sound_reaction',
   roomClosed: 'room_closed',
   memberRemoved: 'member_removed',
 } as const
@@ -207,6 +227,12 @@ export const chatBroadcastSchema = z.object({
 export const reactionBroadcastSchema = z.object({
   userId: z.string(),
   emoji: z.enum(REACTIONS),
+})
+
+export const soundReactionBroadcastSchema = z.object({
+  userId: z.string(),
+  displayName: z.string(),
+  sound: z.enum(SOUND_REACTIONS),
 })
 
 export const roomClosedMessageSchema = z.object({ reason: z.string() })

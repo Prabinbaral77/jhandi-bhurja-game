@@ -1,4 +1,4 @@
-import { REACTIONS, type RoomSnapshot } from '@jhandi/protocol/room'
+import { REACTIONS, SOUND_REACTIONS, type RoomSnapshot } from '@jhandi/protocol/room'
 import { useState } from 'react'
 import Button from '@/components/Button'
 import type { RoomActions } from '@/hooks/useJhandiRoom'
@@ -89,6 +89,7 @@ export default function SidePanel({
             </button>
           ))}
         </div>
+        <SoundBar onPlay={actions.playSound} />
         <form
           className="flex gap-2"
           onSubmit={(e) => {
@@ -112,6 +113,58 @@ export default function SidePanel({
           </Button>
         </form>
       </section>
+    </div>
+  )
+}
+
+const SOUND_ICONS: Record<(typeof SOUND_REACTIONS)[number], string> = {
+  wow: '🤩',
+  ooh: '😬',
+  laugh: '🤣',
+  cry: '😭',
+  quack: '🦆',
+  fart: '💨',
+  applause: '👏',
+  boo: '👎',
+  dhol: '🥁',
+  whistle: '😗',
+  kiss: '😘',
+  coins: '🪙',
+}
+// Server allows one sound per player every 3 s; mirror that so the button shows why.
+const SOUND_COOLDOWN_MS = 3_000
+
+function SoundBar({ onPlay }: { onPlay: (sound: (typeof SOUND_REACTIONS)[number]) => void }) {
+  const t = useT()
+  const [coolingDown, setCoolingDown] = useState(false)
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-xs text-cream/50">
+        {t('soundsTitle')}
+        {coolingDown && <span className="ml-2 text-marigold">{t('soundCooldown')}</span>}
+      </p>
+      <div className="grid grid-cols-6 gap-1">
+        {SOUND_REACTIONS.map((sound) => (
+          <button
+            key={sound}
+            type="button"
+            title={t(`sound.${sound}`)}
+            aria-label={t(`sound.${sound}`)}
+            disabled={coolingDown}
+            className="flex flex-col items-center rounded-lg px-1 py-1 text-xl hover:bg-cream/10 disabled:opacity-40"
+            onClick={() => {
+              onPlay(sound)
+              setCoolingDown(true)
+              setTimeout(() => {
+                setCoolingDown(false)
+              }, SOUND_COOLDOWN_MS)
+            }}
+          >
+            <span>{SOUND_ICONS[sound]}</span>
+            <span className="text-[10px] leading-tight text-cream/60">{t(`sound.${sound}`)}</span>
+          </button>
+        ))}
+      </div>
     </div>
   )
 }

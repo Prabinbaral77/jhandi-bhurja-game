@@ -191,6 +191,10 @@ Branch: `feat/m7-hardening`.
 - Every admin action appears in the audit log ✅ (API tests)
 - Unit tests: ledger 10, game-rules 55, game-server 6, API 22 ✅
 
+## Fun reaction sounds (2026-10-31)
+
+- [x] Players can play a sound for the whole room: wow, ooh, laugh, cry, quack, fart, applause, boo, dhol, whistle, kiss, coins — all synthesised with the Web Audio API (no files, nothing licensed) — `apps/web/src/lib/sound.ts` (`reactionSfx`, a formant "voice" helper), protocol `SOUND_REACTIONS` / `sound_reaction` messages, server broadcast with a 3 s per-player cooldown (`jhandiRoom.ts`), sound bar under the chat (`SidePanel.tsx`), "name: sound" label floats on screen (`FloatingReactions.tsx`); mute toggle silences them too
+
 ## Legal pages and CSP fix (2026-10-31)
 
 - [x] Public pages `/legal/terms`, `/legal/privacy`, `/legal/responsible-play` in Nepali and English — `apps/web/src/content/legal.ts` (content; operator name/e-mail in `OPERATOR`, **fill in before launch**), `pages/LegalPage.tsx`; links in the footer (`Layout.tsx`) and under the 18+ checkbox at sign-in; "18+ · virtual coins, no cash value" notice in the footer and on every legal page
