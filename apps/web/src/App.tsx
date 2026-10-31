@@ -29,7 +29,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        <BrowserRouter>
+        <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
           <Layout>
             <Suspense fallback={<p className="text-cream/60">…</p>}>
               <Routes>

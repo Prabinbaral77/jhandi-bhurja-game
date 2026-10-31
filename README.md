@@ -15,6 +15,7 @@ Real-time, multi-room Jhandi Burja for Dashain, with Nepali heritage art. Virtua
 | [docs/art-direction.md](docs/art-direction.md) | Brief for artists: palette, assets, cultural rules   |
 | [docs/conventions.md](docs/conventions.md)     | How code is written in this repo                     |
 | [docs/security.md](docs/security.md)           | Security checklist, threat model, deploy-day steps   |
+| [docs/deploy.md](docs/deploy.md)               | Hosting under prabinbaral.com.np/game: nginx, env    |
 
 ## Requirements
 

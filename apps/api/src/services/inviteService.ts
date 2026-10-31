@@ -37,7 +37,8 @@ const randomCode = (): string =>
     () => ROOM_CODE_ALPHABET[randomInt(ROOM_CODE_ALPHABET.length)],
   ).join('')
 
-export const inviteLinkFor = (token: string): string => `${env.WEB_ORIGIN}/r/${token}`
+export const inviteLinkFor = (token: string): string =>
+  `${env.WEB_ORIGIN}${env.WEB_BASE_PATH}/r/${token}`
 
 // Creates the room's single active invite; retries on the (rare) code-hash collision.
 export const issueInvite = async (tx: DbOrTx, roomId: string, hostId: string): Promise<Invite> => {

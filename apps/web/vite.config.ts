@@ -20,6 +20,8 @@ const cspConnectSrc = (mode: string): Plugin => {
 }
 
 export default defineConfig(({ mode }) => ({
+  // Sub-path hosting, e.g. VITE_BASE_PATH=/game/ for https://example.com/game/ (docs/deploy.md).
+  base: loadEnv(mode, envDir, 'VITE_').VITE_BASE_PATH || '/',
   plugins: [react(), tailwindcss(), cspConnectSrc(mode)],
   envDir,
   resolve: {

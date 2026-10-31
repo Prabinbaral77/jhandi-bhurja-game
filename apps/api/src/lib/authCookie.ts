@@ -4,7 +4,8 @@ import { env } from '#lib/env'
 // `__Secure-` prefix: browsers refuse to set it over plain http, so it can't be downgraded.
 const REFRESH_COOKIE = env.NODE_ENV === 'production' ? '__Secure-jb_rt' : 'jb_rt'
 // Only sent to the tRPC endpoint, never to static assets.
-const COOKIE_PATH = '/v1/trpc'
+// Browser-visible path of the tRPC endpoint (docs/deploy.md: reverse-proxy prefix).
+const COOKIE_PATH = `${env.API_PUBLIC_PREFIX}/v1/trpc`
 
 export const readRefreshCookie = (req: Request): string | undefined => {
   // cookie-parser sets req.cookies; stay safe if the middleware is ever missing.
