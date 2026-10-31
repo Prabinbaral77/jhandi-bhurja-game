@@ -168,9 +168,9 @@ Fixed forever. If the code ever produces something else, past rounds can no long
 | -------------------------------- | ------- | ------- |
 | Betting window                   | 20 s    | 10–60 s |
 | Roll animation (`ROLLING`)       | 3 s     | fixed   |
-| Result display before next round | 5 s     | 3–15 s  |
+| Result display before next round | 16 s    | 3–30 s  |
 
-Server timers are the source of truth. Clients receive absolute timestamps (`bettingEndsAt`) and show countdowns from them.
+The host runs the table (decided during review): betting opens when the host starts the round and closes only when the host presses "shake the dice" (`host_lock_and_roll`); `bettingEndsAt` is sent as `0` (no countdown). After the result phase the room returns to `OPEN` and waits for the host to start the next round. Server timers still drive the roll animation and result display, and clients receive absolute timestamps for those.
 
 ---
 

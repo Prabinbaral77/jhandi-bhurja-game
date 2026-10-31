@@ -11,7 +11,11 @@ export const phoneSchema = z
   .refine((value) => NEPAL_PHONE_PATTERN.test(value), 'Enter a valid Nepali mobile number')
   .transform((value) => `+977${NEPAL_PHONE_PATTERN.exec(value)?.[1] ?? ''}`)
 
-export const requestOtpInputSchema = z.object({ phone: phoneSchema })
+export const requestOtpInputSchema = z.object({
+  phone: phoneSchema,
+  // Responsible play: the sign-in form requires confirming 18+.
+  ageConfirmed: z.literal(true),
+})
 
 export const requestOtpOutputSchema = z.object({
   expiresInSec: z.number(),

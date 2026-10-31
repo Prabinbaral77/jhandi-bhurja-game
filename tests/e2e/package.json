@@ -7,7 +7,9 @@
     "typecheck": "tsc --noEmit",
     "crash": "tsx --env-file=../../.env crash.ts",
     "lobby": "tsx --env-file=../../.env lobby.ts",
-    "private": "tsx --env-file=../../.env private.ts"
+    "private": "tsx --env-file=../../.env private.ts",
+    "reconnect": "tsx --env-file=../../.env reconnect.ts",
+    "load": "tsx --env-file=../../.env load.ts"
   },
   "devDependencies": {
     "@colyseus/sdk": "^0.18.5",

@@ -15,7 +15,9 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
-    "reconcile": "tsx --env-file=../../.env src/scripts/reconcile.ts"
+    "reconcile": "tsx --env-file=../../.env src/scripts/reconcile.ts",
+    "admin:grant": "tsx --env-file=../../.env scripts/grantAdmin.ts",
+    "dev:topup": "tsx --env-file=../../.env scripts/devTopUp.ts"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",

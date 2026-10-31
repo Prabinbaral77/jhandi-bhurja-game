@@ -1,3 +1,4 @@
+import { adminRouter } from '#controllers/adminRouter'
 import { authRouter } from '#controllers/authRouter'
 import { healthRouter } from '#controllers/healthRouter'
 import { inviteRouter } from '#controllers/inviteRouter'
@@ -13,6 +14,7 @@ export const appRouter = router({
   wallet: walletRouter,
   rooms: roomsRouter,
   invite: inviteRouter,
+  admin: adminRouter,
 })
 
 export type AppRouter = typeof appRouter

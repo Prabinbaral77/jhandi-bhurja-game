@@ -1,6 +1,7 @@
-import type { GameSymbol } from '@jhandi/game-rules/symbols'
+import { SYMBOLS, type GameSymbol } from '@jhandi/game-rules/symbols'
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
+import SymbolIcon from '@/components/art/SymbolIcon'
 import VenueBackdrop from '@/components/art/VenueBackdrop'
 import Button from '@/components/Button'
 import CoinAmount from '@/components/CoinAmount'
@@ -19,6 +20,9 @@ import { useAuthStore } from '@/lib/authStore'
 import { isMessageKey, useT } from '@/lib/i18n'
 import { useRoomStore } from '@/lib/roomStore'
 import { isVenue } from '@/lib/venues'
+
+const isSymbol = (value: string): value is GameSymbol =>
+  (SYMBOLS as readonly string[]).includes(value)
 
 export default function RoomPage() {
   const { roomId = '' } = useParams()
@@ -87,7 +91,7 @@ export default function RoomPage() {
   const venue = isVenue(snapshot.venue) ? snapshot.venue : 'NYATAPOLA'
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4">
         <header className="relative -mx-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
           <VenueBackdrop venue={venue} className="h-40 w-full sm:h-48" />
@@ -102,7 +106,9 @@ export default function RoomPage() {
             <div className="text-right">
               <p className="text-lg font-semibold text-marigold">
                 {t(`phase.${snapshot.phase}`)}
-                {snapshot.phase === 'BETTING' && ` · ${t('timeLeft', { s: secondsLeft })}`}
+                {snapshot.phase === 'BETTING' &&
+                  snapshot.bettingEndsAt > 0 &&
+                  ` · ${t('timeLeft', { s: secondsLeft })}`}
               </p>
               {wallet !== null && (
                 <p className="text-sm">
@@ -130,19 +136,29 @@ export default function RoomPage() {
         )}
 
         <DiceArena dice={snapshot.lastDice} phase={snapshot.phase} roundId={snapshot.roundId} />
+        {snapshot.history[0] && snapshot.phase !== 'RESULT' && (
+          <div className="flex flex-wrap items-center justify-center gap-2 text-sm text-cream/70">
+            <span>{t('lastResults')}:</span>
+            {snapshot.history[0]
+              .split(',')
+              .map((d, i) => (isSymbol(d) ? <SymbolIcon key={i} symbol={d} size={26} /> : null))}
+          </div>
+        )}
         {snapshot.phase === 'RESULT' && lastResult?.roundId === snapshot.roundId && (
           <ResultBanner result={lastResult} isHost={isHost} />
         )}
 
-        <Board
-          snapshot={snapshot}
-          myBets={roundBets}
-          canBet={canBet}
-          onBet={(symbol: GameSymbol) => {
-            actions.placeBet(symbol, betChip)
-          }}
-          onCancel={actions.cancelBet}
-        />
+        <div className="mx-auto w-full max-w-2xl">
+          <Board
+            snapshot={snapshot}
+            myBets={roundBets}
+            canBet={canBet}
+            onBet={(symbol: GameSymbol) => {
+              actions.placeBet(symbol, betChip)
+            }}
+            onCancel={actions.cancelBet}
+          />
+        </div>
 
         {errorKey && (
           <p role="alert" className="text-sm text-tika">
@@ -152,7 +168,10 @@ export default function RoomPage() {
 
         {isPlayer && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-cream/60">{t('tapToBet')}</p>
+            <p className="text-sm text-cream/60">
+              {t('tapToBet')}
+              {snapshot.phase === 'BETTING' && ` · ${t('untilHostShakes')}`}
+            </p>
             <ChipPicker
               value={chip}
               minBet={snapshot.minBet}
@@ -174,7 +193,9 @@ export default function RoomPage() {
           {t('seedHash')}: {snapshot.seedHash || '—'}
         </p>
       </div>
-      <SidePanel snapshot={snapshot} actions={actions} canRemove={isHost && snapshot.isPrivate} />
+      <div className="rounded-2xl border border-cream/10 p-4">
+        <SidePanel snapshot={snapshot} actions={actions} canRemove={isHost && snapshot.isPrivate} />
+      </div>
       <FloatingReactions />
     </div>
   )

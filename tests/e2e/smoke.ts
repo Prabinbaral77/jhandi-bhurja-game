@@ -54,7 +54,10 @@ const trpc = async <T>(
 
 const signUp = async () => {
   const phone = `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
-  const { devCode } = await trpc<{ devCode?: string }>('auth.requestOtp', { phone })
+  const { devCode } = await trpc<{ devCode?: string }>('auth.requestOtp', {
+    phone,
+    ageConfirmed: true,
+  })
   if (!devCode) return fail('API must run with SMS_PROVIDER=console')
   const session = await trpc<{ accessToken: string; user: { id: string; displayName: string } }>(
     'auth.verifyOtp',

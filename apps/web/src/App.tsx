@@ -9,6 +9,7 @@ import HomePage from '@/pages/HomePage'
 import SignInPage from '@/pages/SignInPage'
 
 // Route-level code splitting: the room (art, dice, Colyseus) only loads when entering a room.
+const AdminPage = lazy(() => import('@/pages/AdminPage'))
 const CreateRoomPage = lazy(() => import('@/pages/CreateRoomPage'))
 const InvitePage = lazy(() => import('@/pages/InvitePage'))
 const RoomPage = lazy(() => import('@/pages/RoomPage'))
@@ -38,6 +39,14 @@ export default function App() {
                   element={
                     <RequireAuth>
                       <WelcomePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <RequireAuth>
+                      <AdminPage />
                     </RequireAuth>
                   }
                 />

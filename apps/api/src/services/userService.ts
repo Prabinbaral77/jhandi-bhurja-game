@@ -7,6 +7,7 @@ export const toPublicUser = (user: User): PublicUser => ({
   id: user.id,
   displayName: user.displayName,
   avatarUrl: user.avatarUrl,
+  isAdmin: user.isAdmin,
 })
 
 export const getMe = async (userId: string): Promise<PublicUser> => {

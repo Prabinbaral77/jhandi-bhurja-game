@@ -7,7 +7,8 @@ export const roomLimitsSchema = z
     maxBetPerSymbol: z.number().int().min(100).max(10_000).default(1_000),
     maxBetPerPlayerPerRound: z.number().int().min(100).max(30_000).default(3_000),
     bettingWindowSec: z.number().int().min(10).max(60).default(20),
-    resultDisplaySec: z.number().int().min(3).max(15).default(5),
+    // Time the thrown dice stay on screen before the next round; people need to read them.
+    resultDisplaySec: z.number().int().min(3).max(30).default(16),
   })
   .refine((l) => l.minBet <= l.maxBetPerSymbol, {
     message: 'minBet cannot be above maxBetPerSymbol',

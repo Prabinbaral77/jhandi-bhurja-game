@@ -56,7 +56,10 @@ const must = async <T>(path: string, input: unknown, token?: string): Promise<T>
 
 const signUp = async () => {
   const phone = `98${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`
-  const { devCode = '' } = await must<{ devCode?: string }>('auth.requestOtp', { phone })
+  const { devCode = '' } = await must<{ devCode?: string }>('auth.requestOtp', {
+    phone,
+    ageConfirmed: true,
+  })
   const s = await must<{ accessToken: string; user: { id: string } }>('auth.verifyOtp', {
     phone,
     code: devCode,

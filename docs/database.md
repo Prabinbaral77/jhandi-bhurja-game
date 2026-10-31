@@ -6,7 +6,8 @@
 
 - The DDL below is the design. The source of truth is the Drizzle schema in `packages/db/src/schema/` and the generated SQL in `packages/db/migrations/` (status/kind columns there are Postgres enums).
 - System accounts and platform settings are seeded by `0002_seed_settings.sql` with fixed ids (`packages/ledger/src/systemAccounts.ts`).
-- Hosted on **Supabase** Postgres. Apps connect through the **session pooler** (IPv4, supports prepared statements). If the transaction pooler (port 6543) is ever used, the client turns prepared statements off automatically.
+- Hosted on **Supabase** Postgres. Apps **must** connect through the **session pooler** (port 5432). The transaction pooler (port 6543) hung connections under concurrent load in M7's load test (backends stuck `active` waiting on the client for minutes, rounds never started); the client still turns prepared statements off for 6543, but don't use it.
+- Migration `0007_session_timeouts.sql` sets `idle_in_transaction_session_timeout = 30s`, `statement_timeout = 30s`, `lock_timeout = 10s` on the application role, so a client that dies mid-transaction cannot hold row locks (e.g. the `SYSTEM:BONUS` row every sign-up needs) for long.
 - All tables live in the **`jhandi` schema**, not `public`, so Supabase's Data API (which exposes `public` to anyone with the anon key) can never reach game data. The DDL below omits the `jhandi.` prefix for readability.
 - Connection pool is small (`DATABASE_POOL_MAX`, default 5) because Supabase pooler limits are low on small plans.
 - Coins are `BIGINT`, never `NUMERIC`/float. Balances can never go below zero (`CHECK`).

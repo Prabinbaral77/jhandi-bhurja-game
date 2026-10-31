@@ -12,9 +12,13 @@ const settingsSchema = z.object({
   MIN_HOST_BANK_TO_CONTINUE: coins,
   PLATFORM_FEE_BPS: z.number().int().min(0).max(10_000),
   PRIVATE_ROOM_MAX_MEMBERS: z.number().int().positive(),
+  // Responsible play: a player may not lose more than this per Kathmandu day (0 = off).
+  DAILY_LOSS_CAP: coins.default(3_000),
 })
 
 export type PlatformSettings = z.infer<typeof settingsSchema>
+export const SETTING_KEYS = settingsSchema.keyof().options
+export const settingValueSchema = settingsSchema
 
 const CACHE_TTL_MS = 60_000
 

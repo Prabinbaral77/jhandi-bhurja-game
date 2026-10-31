@@ -77,6 +77,14 @@ export const requestOtp = async (phone: string, ip: string) => {
   }
 }
 
+export interface SignUpProfile {
+  displayName: string
+  avatarUrl: string | null
+  // Set on the first sign-in only (responsible play + bonus-farming signal).
+  ageConfirmed?: boolean
+  ip?: string
+}
+
 export interface SignInResult {
   user: User
   isNewUser: boolean
@@ -93,7 +101,7 @@ const assertActive = (user: User): void => {
 const signUp = async (
   provider: AuthProvider,
   subject: string,
-  profile: { displayName: string; avatarUrl: string | null },
+  profile: SignUpProfile,
 ): Promise<SignInResult> => {
   const { SIGNUP_BONUS } = await getSettings()
   const user = await db.transaction(async (tx) => {
@@ -102,7 +110,10 @@ const signUp = async (
       identityId: newId(),
       provider,
       subject,
-      ...profile,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+      ageConfirmedAt: profile.ageConfirmed ? new Date() : null,
+      signupIpHash: profile.ip ? hashSecret(`ip:${profile.ip}`) : null,
     })
     const accountId = await getOrCreateAccount(tx, 'USER', created.id)
     if (SIGNUP_BONUS > 0) {
@@ -131,7 +142,7 @@ const signUp = async (
 export const signInWithIdentity = async (
   provider: AuthProvider,
   subject: string,
-  profile: { displayName: string; avatarUrl: string | null },
+  profile: SignUpProfile,
 ): Promise<SignInResult> => {
   const existing = await findUserByIdentity(provider, subject)
   if (existing) {
@@ -169,6 +180,8 @@ export const verifyOtp = async (phone: string, code: string, ip: string): Promis
   return signInWithIdentity('PHONE', phone, {
     displayName: defaultPhoneName(phone),
     avatarUrl: null,
+    ageConfirmed: true,
+    ip,
   })
 }
 
@@ -190,7 +203,7 @@ const verifyGoogleIdToken = async (idToken: string, clientId: string): Promise<J
   }
 }
 
-export const signInWithGoogle = async (idToken: string): Promise<SignInResult> => {
+export const signInWithGoogle = async (idToken: string, ip: string): Promise<SignInResult> => {
   if (!env.GOOGLE_CLIENT_ID) throw new AppError('FORBIDDEN', 'Google sign-in is not enabled')
   const payload = await verifyGoogleIdToken(idToken, env.GOOGLE_CLIENT_ID)
   if (!payload.sub) throw new AppError('UNAUTHENTICATED', 'Google sign-in failed')
@@ -199,5 +212,7 @@ export const signInWithGoogle = async (idToken: string): Promise<SignInResult> =
   return signInWithIdentity('GOOGLE', payload.sub, {
     displayName: name.slice(0, 30),
     avatarUrl: picture,
+    ageConfirmed: true,
+    ip,
   })
 }

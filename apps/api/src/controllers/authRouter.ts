@@ -25,6 +25,7 @@ import {
   issueRefreshToken,
   revokeRefreshTokenIfValid,
 } from '#services/tokenService'
+import { findUserById } from '#repositories/userRepository'
 import { getMe, toPublicUser } from '#services/userService'
 
 const startSession = async (ctx: Context, result: SignInResult): Promise<SignInOutput> => {
@@ -61,13 +62,18 @@ export const authRouter = router({
   google: publicProcedure
     .input(googleSignInInputSchema)
     .output(signInOutputSchema)
-    .mutation(async ({ input, ctx }) => startSession(ctx, await signInWithGoogle(input.idToken))),
+    .mutation(async ({ input, ctx }) =>
+      startSession(ctx, await signInWithGoogle(input.idToken, ctx.ip)),
+    ),
 
   refresh: publicProcedure.output(refreshOutputSchema).mutation(async ({ ctx }) => {
     const token = readRefreshCookie(ctx.req)
     if (!token) throw new AppError('UNAUTHENTICATED', 'Please sign in')
     try {
       const userId = await consumeRefreshToken(token)
+      const account = await findUserById(userId)
+      if (account?.status !== 'ACTIVE')
+        throw new AppError('FORBIDDEN', 'This account is not active')
       const user = await getMe(userId)
       const [access, refresh] = await Promise.all([
         issueAccessToken(userId),

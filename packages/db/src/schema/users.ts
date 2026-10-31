@@ -10,6 +10,10 @@ export const users = jhandiSchema.table('users', {
   avatarUrl: text('avatar_url'),
   status: userStatus('status').notNull().default('ACTIVE'),
   isAdmin: boolean('is_admin').notNull().default(false),
+  // Responsible play (docs/architecture.md §10): confirmed 18+ at sign-up.
+  ageConfirmedAt: timestamp('age_confirmed_at', { withTimezone: true }),
+  // HMAC of the sign-up IP, for bonus-farming signals (many accounts from one address).
+  signupIpHash: text('signup_ip_hash'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 

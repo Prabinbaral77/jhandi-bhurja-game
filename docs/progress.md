@@ -2,17 +2,17 @@
 
 > Updated after every task. Milestones are defined in [milestones.md](milestones.md).
 
-| Milestone                          | Status                                                     |
-| ---------------------------------- | ---------------------------------------------------------- |
-| M0 Project setup                   | ✅ Done (engineering), art style guide pending             |
-| M1 Core game rules                 | ✅ Done                                                    |
-| M2 Auth & wallet                   | ✅ Done                                                    |
-| M3 Single-room MVP                 | ✅ Done                                                    |
-| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL          |
-| M5 Private rooms                   | ✅ Done                                                    |
-| M6 Heritage art, sound & Nepali UI | ✅ Done with in-house vector art (pending review & commit) |
-| M7 Hardening & admin               | ⏳ Next                                                    |
-| M8 Beta & launch                   | —                                                          |
+| Milestone                          | Status                                                             |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| M0 Project setup                   | ✅ Done (engineering), art style guide pending                     |
+| M1 Core game rules                 | ✅ Done                                                            |
+| M2 Auth & wallet                   | ✅ Done                                                            |
+| M3 Single-room MVP                 | ✅ Done                                                            |
+| M4 Lobby & spectators              | ✅ Done on one node; multi-node needs a Redis URL                  |
+| M5 Private rooms                   | ✅ Done                                                            |
+| M6 Heritage art, sound & Nepali UI | ✅ Done with in-house vector art                                   |
+| M7 Hardening & admin               | ✅ Done except hosted monitoring/2k load (pending review & commit) |
+| M8 Beta & launch                   | ⏳ Next                                                            |
 
 ## M0 — Project setup
 
@@ -168,18 +168,52 @@ Branch: `feat/m6-heritage-art`. All art is original inline SVG/CSS (no image fil
 - Cultural review: no deity images anywhere; the Swayambhu stupa is drawn without the eyes; all art original ✅
 - Initial download ≪ 3 MB ✅ (no image files at all)
 
+## M7 — Hardening & admin
+
+Branch: `feat/m7-hardening`.
+
+- [x] Audit log table + `writeAudit` inside every admin transaction — `packages/db/src/schema/audit.ts`, `migrations/0005_audit_and_age.sql`, `apps/api/src/repositories/auditRepository.ts` (created)
+- [x] Admin API (`admin.*`, DB-checked `is_admin` on every call): user search (phone/name/id) with same-IP sign-up signal, freeze/ban (logs out, blocks coin actions), coin adjustment through the ledger (idempotent), per-user ledger, rooms, platform settings edit (cache invalidated), audit list, host/player collusion report — `apps/api/src/{controllers/adminRouter,services/adminService,repositories/adminRepository}.ts` (created), `lib/trpc.ts` (`adminProcedure`), `services/settingsService.ts` (modified); `pnpm --filter @jhandi/api admin:grant <phone>` — `scripts/grantAdmin.ts` (created)
+- [x] Admin web panel `/admin` (users, rooms, settings, audit, collusion) — `apps/web/src/pages/AdminPage.tsx` (created); nav link for admins
+- [x] Anti-abuse: one account per phone (unique identity, since M2); sign-up IP hash → "N other accounts from this IP" on the user card; collusion report (players with ≥ 3,000 net from one host's bank in 7 days, private rooms highlighted) — `users.signup_ip_hash`
+- [x] Responsible play: 18+ checkbox required at sign-in (`ageConfirmed`, stored `age_confirmed_at`); `DAILY_LOSS_CAP` (3,000/day, `0` = off) enforced per bet in the game server incl. coins at stake this round (`LOSS_CAP_REACHED`); hourly session reminder — `apps/game-server/src/controllers/jhandiRoom.ts`, `repositories/roundRepository.ts` (`netLostSince`), `utils/nepalTime.ts`, `apps/web/src/hooks/useSessionReminder.ts`, `SignInPage`, `Layout` (modified/created); `migrations/0006_seed_loss_cap.sql`
+- [x] Frozen/banned users: refresh refused (`FORBIDDEN`), refresh tokens revoked, game-server join refused (status check since M3)
+- [x] Reconnection e2e (drop socket, reconnect with token within 30 s: wallet and bet intact; second tab replaces first) — `tests/e2e/reconnect.ts`
+- [x] Load test script with p50/p95 bet-ack latency, settlement time, error and unacked counts — `tests/e2e/load.ts`
+- [x] DB robustness found by the load test: role-level `idle_in_transaction_session_timeout` / `statement_timeout` / `lock_timeout` — `migrations/0007_session_timeouts.sql`; **switched `DATABASE_URL` from the transaction pooler (6543) to the session pooler (5432)** after the transaction pooler hung game-server connections (see `docs/database.md`)
+- [x] OTP per-IP limits configurable for tests (M4)
+- [ ] Hosted monitoring (OpenTelemetry/Grafana, Sentry) — needs accounts/hosting; structured pino logs + `/health` + `reconcile` exit code exist
+- [ ] 2,000 users / 200 rooms — needs servers next to the DB (M8 hosting)
+
+**Exit criteria check (2026-10-20, laptop in Nepal → Supabase Mumbai, session pooler):**
+
+- Load 10 rooms × 5 players × 3 rounds: 150 bets, 0 errors, 0 unacked; ledger reconciles ✅. Bet ack p50 3.8 s / p95 6.5 s and settlement of all 10 rooms ≈ 10 s — dominated by ~100 ms per DB round trip from Nepal and the per-room serial queue; not a server-side ceiling. Same test on a server in Mumbai is the real number (M8).
+- Every admin action appears in the audit log ✅ (API tests)
+- Unit tests: ledger 10, game-rules 55, game-server 6, API 22 ✅
+
+## Review changes after M6/M7 (2026-10-31)
+
+- [x] Dice are now real 3D in WebGL (three.js, lazy chunk ~235 kB gzip): courtyard floor, lights and shadows, brass cup, six cubes with faces drawn after the hand-carved yellow Nepali dice (red/black folk figures). Deterministic mini-physics per round (`lib/dicePhysics.ts`), textures from the same SVG as the board (`lib/diceTextures.ts`), `components/room/DiceScene.tsx`
+- [x] Full-screen throw sequence: cup rattles 1.4 s → dice fly/bounce 2.6 s → rest 6 s with the read-out → 3-2-1 countdown → board; "Go to board" button skips the wait; the sequence finishes even if the server already started the next round
+- [x] Board: woven bamboo khal, bigger yellow tiles; after a throw, winning symbols blink green and every other symbol faint red until the host starts the next round
+- [x] Host runs the table: betting has no timer; it closes when the host presses "shake the dice"; after the result the room waits (`OPEN`) for the host to start the next round. "Roll now"/"Pause" buttons removed. `resultDisplaySec` default 16 s (existing open rooms raised by `0008_result_display_16.sql`)
+- [x] `ALREADY_HOSTING` error (was shown as "account not active"); `pnpm --filter @jhandi/api dev:topup <phone> [coins]` for test coins (dev only)
+- [x] Side panel (people / activity / chat) moved below the board
+
 ## Tech debt
 
-| Item                                                                                                                                                         | Proper fix                                                                   | When                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ----------------------- |
-| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                                   | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                         | Before beta (M8)        |
-| Per-IP rate limits are in process memory (API); Colyseus-side chat limits too                                                                                | Move to Redis                                                                | M4 (when Redis arrives) |
-| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                            | Create an OAuth client in Google Cloud                                       | When wanted             |
-| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                         | Host api/game-server in the DB region; consider a local Postgres for dev     | M8 (hosting)            |
-| Multi-node not exercised: Redis driver/presence wired but unverified; production also needs sticky routing to the owning node (`@colyseus/proxy` or LB rule) | Provision Redis (Upstash, Mumbai), run 2 nodes, add proxy                    | M8 (hosting)            |
-| No Malshree dhun / background music (needs a licensed recording)                                                                                             | License a recording, add a music toggle separate from SFX                    | Before launch (M8)      |
-| In-house vector art is a v1 stand-in for commissioned heritage art                                                                                           | Commission an artist per `docs/art-direction.md`; swap components one by one | When budget allows      |
-| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                              | Inject version at build time (tsup `define`)                                 | M8 deploy               |
+| Item                                                                                                                                                         | Proper fix                                                                                                | When                    |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ----------------------- |
+| OTP is not really sent: `SMS_PROVIDER=console` shows the code in the web app (production start is blocked)                                                   | Add a Nepali SMS provider (Sparrow SMS / Aakash SMS)                                                      | Before beta (M8)        |
+| Per-IP rate limits are in process memory (API); Colyseus-side chat limits too                                                                                | Move to Redis                                                                                             | M4 (when Redis arrives) |
+| Google sign-in needs `GOOGLE_CLIENT_ID` / `VITE_GOOGLE_CLIENT_ID`                                                                                            | Create an OAuth client in Google Cloud                                                                    | When wanted             |
+| Dev latency: each DB query Nepal → Mumbai ~100 ms, so bets take ~0.7 s and settlements 2–3 s locally                                                         | Host api/game-server in the DB region; consider a local Postgres for dev                                  | M8 (hosting)            |
+| Multi-node not exercised: Redis driver/presence wired but unverified; production also needs sticky routing to the owning node (`@colyseus/proxy` or LB rule) | Provision Redis (Upstash, Mumbai), run 2 nodes, add proxy                                                 | M8 (hosting)            |
+| No hosted monitoring (OTel/Grafana/Sentry)                                                                                                                   | Add Sentry + OTel exporter once hosting exists; alert on `reconcile` failures                             | M8                      |
+| Bet latency in dev is serialised per room on a far DB (p95 6.5 s with 5 bettors)                                                                             | Host next to the DB; if still needed, batch validation and write bets without waiting for each round trip | M8, measure first       |
+| No Malshree dhun / background music (needs a licensed recording)                                                                                             | License a recording, add a music toggle separate from SFX                                                 | Before launch (M8)      |
+| In-house vector art is a v1 stand-in for commissioned heritage art                                                                                           | Commission an artist per `docs/art-direction.md`; swap components one by one                              | When budget allows      |
+| `version` in health shows `0.0.0` when started with plain `node` (not via pnpm)                                                                              | Inject version at build time (tsup `define`)                                                              | M8 deploy               |
 
 ## Files touched (all milestones)
 

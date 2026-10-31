@@ -39,7 +39,12 @@ import {
   setRoomStatus,
   upsertMember,
 } from '#repositories/roomRepository'
-import { markRoundLocked, nextRoundNo, recentDice } from '#repositories/roundRepository'
+import {
+  markRoundLocked,
+  netLostSince,
+  nextRoundNo,
+  recentDice,
+} from '#repositories/roundRepository'
 import {
   balanceOf,
   closeRoomAndReturnBank,
@@ -54,6 +59,7 @@ import {
   voidUnfinishedRounds,
 } from '#services/roundService'
 import { JhandiState, MemberState, SymbolTotalState } from '#schemas/roomState'
+import { kathmanduDayStart } from '#utils/nepalTime'
 import { createSerialQueue } from '#utils/serialQueue'
 import { onValidatedMessage } from '#utils/onValidatedMessage'
 
@@ -128,6 +134,8 @@ export class JhandiRoom extends Room<{
   private readonly userAccounts = new Map<string, string>()
   // Wallet balances of people in the room, refreshed from every ledger write (saves a query per bet).
   private readonly wallets = new Map<string, number>()
+  // Net coins lost today per player (docs/architecture.md §10 daily loss cap); loaded on join.
+  private readonly lostToday = new Map<string, { day: number; lost: number }>()
   private readonly names = new Map<string, string>()
   private readonly lastChatAt = new Map<string, number>()
   // Bets of the last 10 minutes, for the lobby's volume figure.
@@ -223,6 +231,11 @@ export class JhandiRoom extends Room<{
     const accountId = await getUserAccount(userId)
     this.userAccounts.set(userId, accountId)
     this.wallets.set(userId, await balanceOf(accountId))
+    const dayStart = kathmanduDayStart(new Date())
+    this.lostToday.set(userId, {
+      day: dayStart.getTime(),
+      lost: await netLostSince(userId, dayStart),
+    })
     await upsertMember(
       this.dbRoomId,
       userId,
@@ -397,6 +410,7 @@ export class JhandiRoom extends Room<{
       roundBets: [...round.bets.values()],
     })
     if (rejection) throw new AppError(rejection, BET_REJECTION_MESSAGES[rejection])
+    await this.assertUnderLossCap(userId, amount, round)
 
     const { duplicate, balance } = await recordBet({
       roundId: round.id,
@@ -547,17 +561,12 @@ export class JhandiRoom extends Room<{
     state.pausedReason = ''
     this.refreshBoard()
 
-    const windowMs = this.limits.bettingWindowSec * 1000
-    state.bettingEndsAt = Date.now() + windowMs
+    // The host runs the table: betting stays open until they send host_lock_and_roll
+    // ("shake the dice"). No clock, so 0 tells clients there is no countdown to show.
+    state.bettingEndsAt = 0
     this.setPhase('BETTING')
     await setRoomStatus(this.dbRoomId, 'OPEN')
     for (const client of this.clients) this.sendPrivateState(client)
-
-    this.bettingTimer = this.clock.setTimeout(() => {
-      void this.enqueue(() => this.lockAndRoll()).catch((error: unknown) => {
-        logger.error({ err: error, roomId: this.dbRoomId }, 'lock failed')
-      })
-    }, windowMs)
   }
 
   private async lockAndRoll(): Promise<void> {
@@ -637,6 +646,7 @@ export class JhandiRoom extends Room<{
 
     const netByUser = new Map<string, number>()
     for (const bet of result.bets) {
+      this.addLoss(bet.userId, bet.won ? -bet.winnings : bet.amount)
       netByUser.set(
         bet.userId,
         (netByUser.get(bet.userId) ?? 0) + (bet.won ? bet.winnings : -bet.amount),
@@ -697,16 +707,19 @@ export class JhandiRoom extends Room<{
     }, this.limits.resultDisplaySec * 1000)
   }
 
-  private async afterResult(): Promise<void> {
-    if (this.phase !== 'RESULT' || this.closed) return
+  // After the result is shown the table waits for the host to start the next round.
+  private afterResult(): Promise<void> {
+    if (this.phase !== 'RESULT' || this.closed) return Promise.resolve()
     const hostOnline = this.state.members.get(this.hostId)?.connected === true
     if (this.pauseAfterRound) {
       this.pause('HOST_PAUSED')
     } else if (!hostOnline) {
       this.pause('HOST_AWAY')
     } else {
-      await this.startRound()
+      this.state.pausedReason = ''
+      this.setPhase('OPEN')
     }
+    return Promise.resolve()
   }
 
   private pause(reason: 'HOST_PAUSED' | 'HOST_AWAY' | 'BANK_LOW' | 'ERROR'): void {
@@ -857,6 +870,42 @@ export class JhandiRoom extends Room<{
       for (const bet of round.bets.values())
         if (bet.userId === userId) mine[bet.symbol] = bet.amount
       client.send(OUT.myBets, { roundId: round.id, bets: mine })
+    }
+  }
+
+  private lossToday(userId: string): number {
+    const entry = this.lostToday.get(userId)
+    const day = kathmanduDayStart(new Date()).getTime()
+    if (!entry || entry.day !== day) return 0
+    return entry.lost
+  }
+
+  private addLoss(userId: string, delta: number): void {
+    const day = kathmanduDayStart(new Date()).getTime()
+    const entry = this.lostToday.get(userId)
+    const lost = entry && entry.day === day ? entry.lost : 0
+    this.lostToday.set(userId, { day, lost: lost + delta })
+  }
+
+  // Responsible play: today's settled losses plus everything at stake this round stay under the cap.
+  private async assertUnderLossCap(
+    userId: string,
+    amount: number,
+    round: ActiveRound,
+  ): Promise<void> {
+    const { DAILY_LOSS_CAP } = await getSettings()
+    if (DAILY_LOSS_CAP <= 0) return
+    let atStake = amount
+    for (const bet of round.bets.values()) if (bet.userId === userId) atStake += bet.amount
+    if (this.lossToday(userId) + atStake > DAILY_LOSS_CAP) {
+      throw new AppError(
+        'LOSS_CAP_REACHED',
+        `Daily loss limit of ${DAILY_LOSS_CAP} coins reached`,
+        {
+          cap: DAILY_LOSS_CAP,
+          lostToday: this.lossToday(userId),
+        },
+      )
     }
   }
 

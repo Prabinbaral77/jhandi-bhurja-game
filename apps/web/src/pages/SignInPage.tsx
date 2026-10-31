@@ -24,6 +24,7 @@ export default function SignInPage() {
   const setSession = useAuthStore((s) => s.setSession)
 
   const [phone, setPhone] = useState('')
+  const [ageConfirmed, setAgeConfirmed] = useState(false)
   const [code, setCode] = useState('')
   const [sent, setSent] = useState<{ phone: string; resendAt: number; devCode?: string } | null>(
     null,
@@ -68,7 +69,7 @@ export default function SignInPage() {
 
   const submitPhone = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
-    requestOtp.mutate({ phone })
+    if (ageConfirmed) requestOtp.mutate({ phone, ageConfirmed: true })
   }
   const submitCode = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -99,8 +100,22 @@ export default function SignInPage() {
               required
             />
           </label>
+          <label className="flex items-start gap-2 text-sm text-cream/80">
+            <input
+              type="checkbox"
+              className="mt-1 size-4 accent-marigold"
+              checked={ageConfirmed}
+              onChange={(e) => {
+                setAgeConfirmed(e.target.checked)
+              }}
+            />
+            <span>{t('ageConfirm')}</span>
+          </label>
           <ErrorText error={requestOtp.error} />
-          <Button type="submit" disabled={requestOtp.isPending || phone.trim().length < 10}>
+          <Button
+            type="submit"
+            disabled={requestOtp.isPending || phone.trim().length < 10 || !ageConfirmed}
+          >
             {t('sendCode')}
           </Button>
         </form>
@@ -146,7 +161,7 @@ export default function SignInPage() {
               variant="ghost"
               disabled={secondsToResend > 0 || requestOtp.isPending}
               onClick={() => {
-                requestOtp.mutate({ phone: sent.phone })
+                requestOtp.mutate({ phone: sent.phone, ageConfirmed: true })
               }}
             >
               {secondsToResend > 0 ? t('resendIn', { s: secondsToResend }) : t('resend')}

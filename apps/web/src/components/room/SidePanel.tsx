@@ -22,7 +22,7 @@ export default function SidePanel({
   const members = Object.values(snapshot.members).sort((a, b) => a.role.localeCompare(b.role))
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid gap-4 md:grid-cols-3">
       <section>
         <h2 className="mb-2 font-semibold">
           {t('members')} ({members.length})

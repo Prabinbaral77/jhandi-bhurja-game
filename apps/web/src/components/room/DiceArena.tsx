@@ -1,22 +1,28 @@
 import type { GameSymbol } from '@jhandi/game-rules/symbols'
 import type { RoomPhase } from '@jhandi/protocol/room'
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
-import Cube from '@/components/art/Cube'
-import { FACE_UP_ROTATION, landingsFor } from '@/lib/dice'
-import { sfx } from '@/lib/sound'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import SymbolIcon from '@/components/art/SymbolIcon'
+import Button from '@/components/Button'
+import { useLanguageStore, useT } from '@/lib/i18n'
 
 /**
- * The throw, like at a real khal: the server's ROLLING phase lasts 3 s. For the first 1.4 s the
- * dice rattle inside a brass cup; then the cup tips and six 3D dice fly out, tumble, bounce
- * across the cloth and come to rest on their real faces as RESULT arrives.
- * Everything is CSS transforms (compositor only), so it holds 60 fps on cheap phones.
+ * Full-screen throw: the server's ROLLING phase lasts 3 s. The brass cup rattles for 1.4 s,
+ * then the six dice fly out in real 3D (DiceScene, three.js), bounce across the whole floor and
+ * come to rest on the faces the server rolled. They stay on screen for HOLD_MS so everyone can
+ * read the throw, then a 3-2-1 countdown, and only then the overlay goes and the board underneath
+ * shows the winning tiles for the rest of RESULT. Joining mid-round shows the dice at rest.
  */
 
-const SHAKE_MS = 1_400
-const THROW_MS = 1_500
-const DIE = 52
+const DiceScene = lazy(() => import('@/components/room/DiceScene'))
 
-type Stage = 'idle' | 'shaking' | 'thrown' | 'settled'
+const SHAKE_MS = 1_400
+const ROLL_MS = 2_600
+// How long the resting dice stay on screen before the 3-2-1 countdown: time to read the throw.
+const HOLD_MS = 6_000
+const COUNTDOWN_S = 3
+const DEVANAGARI_DIGITS = '०१२३४५६७८९'
+
+type Stage = 'idle' | 'shaking' | 'thrown' | 'settled' | 'countdown' | 'done'
 
 const reduceMotion = () =>
   typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -30,148 +36,146 @@ export default function DiceArena({
   phase: RoomPhase
   roundId: string
 }) {
+  const t = useT()
+  const language = useLanguageStore((s) => s.language)
   const [stage, setStage] = useState<Stage>('idle')
+  const [count, setCount] = useState(COUNTDOWN_S)
   // Round whose throw this arena has already animated (RESULT after ROLLING keeps it going).
   const animatedRound = useRef<string | null>(null)
+  // The dice of the throw being shown. Kept here so the whole sequence (rest → 3-2-1 → board)
+  // finishes even if the server has already moved on to the next round and cleared `dice`.
+  const [shown, setShown] = useState<{ roundId: string; dice: GameSymbol[] }>({
+    roundId: '',
+    dice: [],
+  })
   // Pending stage changes. Kept in a ref so RESULT arriving mid-flight doesn't cut the throw short.
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
   const clearTimers = () => {
     timers.current.forEach(clearTimeout)
     timers.current = []
   }
-  const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms))
-
   useEffect(() => {
+    const later = (fn: () => void, ms: number) => timers.current.push(setTimeout(fn, ms))
+    // 3 … 2 … 1, one second each, starting `at` ms from now; then the board takes over.
+    const scheduleCountdown = (at: number) => {
+      for (let n = COUNTDOWN_S; n >= 1; n--) {
+        later(
+          () => {
+            setCount(n)
+            setStage('countdown')
+          },
+          at + (COUNTDOWN_S - n) * 1000,
+        )
+      }
+      later(
+        () => {
+          setStage('done')
+          timers.current = []
+        },
+        at + COUNTDOWN_S * 1000,
+      )
+    }
+
     if (phase === 'ROLLING' && animatedRound.current !== roundId) {
       animatedRound.current = roundId
       clearTimers()
-      if (reduceMotion()) {
-        later(() => {
-          setStage('settled')
-        }, 0)
-      } else {
-        later(() => {
-          setStage('shaking')
-        }, 0)
-        later(() => {
-          setStage('thrown')
-        }, SHAKE_MS)
-        later(() => {
-          setStage('settled')
-        }, SHAKE_MS + THROW_MS)
-      }
+      const shake = reduceMotion() ? 0 : SHAKE_MS
+      const roll = reduceMotion() ? 0 : ROLL_MS
+      later(() => {
+        setShown({ roundId, dice })
+        setStage(shake ? 'shaking' : 'thrown')
+      }, 0)
+      later(() => {
+        setStage('thrown')
+      }, shake)
+      later(() => {
+        setStage('settled')
+      }, shake + roll)
+      scheduleCountdown(shake + roll + HOLD_MS)
     } else if (phase === 'RESULT') {
       if (animatedRound.current !== roundId) {
-        // Joined mid-round: throw straight away, no shake.
+        // Joined mid-round: show the dice at rest for the hold, no throw.
         animatedRound.current = roundId
         clearTimers()
         later(() => {
-          setStage(reduceMotion() ? 'settled' : 'thrown')
-        }, 0)
-        later(() => {
+          setShown({ roundId, dice })
           setStage('settled')
-        }, THROW_MS)
+        }, 0)
+        scheduleCountdown(HOLD_MS)
       }
-    } else if (phase !== 'ROLLING') {
-      clearTimers()
+    } else if (phase !== 'ROLLING' && timers.current.length === 0) {
+      // Nothing in progress (a running sequence ends on its own 'done'): make sure we're hidden.
       later(() => {
         setStage('idle')
       }, 0)
     }
-  }, [phase, roundId])
+  }, [phase, roundId, dice])
 
   useEffect(() => clearTimers, [])
 
-  const previousStage = useRef<Stage>('idle')
-  useEffect(() => {
-    if (stage === 'thrown' && previousStage.current !== 'thrown') sfx('clatter')
-    previousStage.current = stage
-  }, [stage])
+  const throwDice = shown.dice
+  const throwRound = shown.roundId
+  if (stage === 'idle' || stage === 'done' || throwDice.length !== 6) return null
 
-  // Arena size in px, so each die can start its flight from the cup regardless of screen width.
-  const arenaRef = useRef<HTMLDivElement>(null)
-  const [arena, setArena] = useState({ w: 400, h: 176 })
-  useEffect(() => {
-    const el = arenaRef.current
-    if (!el) return
-    const observer = new ResizeObserver(([entry]) => {
-      if (entry) setArena({ w: entry.contentRect.width, h: entry.contentRect.height })
-    })
-    observer.observe(el)
-    return () => {
-      observer.disconnect()
-    }
-  }, [])
-
-  const landings = useMemo(() => landingsFor(roundId || 'none'), [roundId])
-  const showDice = (stage === 'thrown' || stage === 'settled') && dice.length === 6
+  const counts = throwDice.reduce<Partial<Record<GameSymbol, number>>>((acc, d) => {
+    acc[d] = (acc[d] ?? 0) + 1
+    return acc
+  }, {})
+  const winners = (Object.entries(counts) as [GameSymbol, number][]).filter(([, k]) => k >= 2)
+  const atRest = stage === 'settled' || stage === 'countdown'
 
   return (
-    <div
-      ref={arenaRef}
-      className="relative mx-auto h-44 w-full max-w-md sm:h-52"
-      style={{ perspective: '900px' }}
-      aria-live="polite"
-    >
-      {/* cloth the dice land on */}
-      <div className="absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_50%_40%,#6b2418,#3b1410_75%)] shadow-[inset_0_0_30px_rgba(0,0,0,0.6)]" />
+    <div className="pointer-events-none fixed inset-0 z-50" aria-live="polite">
+      <div className="absolute inset-0 bg-[#2a0f0a]/85" />
+      <Suspense fallback={null}>
+        <DiceScene stage={atRest ? 'settled' : stage} dice={throwDice} roundId={throwRound} />
+      </Suspense>
 
-      {/* brass cup: rattles while shaking, tips over to throw, lies on its side afterwards */}
-      <div
-        className={`absolute left-1/2 top-2 h-16 w-[72px] -translate-x-1/2 transition-transform duration-500 ${
-          stage === 'shaking'
-            ? 'motion-safe:animate-[cup-shake_0.18s_linear_infinite]'
-            : stage === 'thrown' || stage === 'settled'
-              ? 'origin-bottom [transform:translateX(-50%)_rotate(-115deg)_translateY(-6px)]'
-              : ''
-        } ${stage === 'settled' ? 'opacity-70' : ''}`}
-      >
-        <div
-          className="h-full w-full rounded-b-[40%] rounded-t-[14%] border-2 border-[#8a6a1e] shadow-[0_8px_16px_rgba(0,0,0,0.5),inset_0_-10px_14px_rgba(0,0,0,0.45)]"
-          style={{ background: 'linear-gradient(90deg,#8a6a1e,#e2c06a 40%,#c9a23a 60%,#7a5a14)' }}
-        />
-        <div className="absolute inset-x-1 top-0 h-3 rounded-[50%] bg-[#4a3510]" />
-      </div>
+      {stage === 'countdown' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+          <span
+            key={count}
+            className="text-[9rem] leading-none font-bold text-marigold drop-shadow-[0_6px_18px_rgba(0,0,0,0.7)] motion-safe:animate-[settle_0.5s_ease-out_both]"
+          >
+            {language === 'ne' ? DEVANAGARI_DIGITS[count] : count}
+          </span>
+          <span className="rounded-full bg-black/65 px-4 py-1.5 text-lg text-cream">
+            {t('toBoard')}
+          </span>
+        </div>
+      )}
 
-      {showDice &&
-        dice.map((face, i) => {
-          const land = landings[i] ?? landings[0]
-          if (!land) return null
-          const rest = FACE_UP_ROTATION[face]
-          // Flight starts at the cup mouth (top centre), expressed relative to the landing spot.
-          const startX = arena.w * (0.5 - land.x / 100)
-          const startY = -((arena.h * land.y) / 100) + 20
-          const vars = {
-            '--start-x': `${startX}px`,
-            '--start-y': `${startY}px`,
-            '--arc-x': `${land.arcX}px`,
-            '--rx-end': `${rest.rx + land.spin * 360}deg`,
-            '--ry-end': `${rest.ry + land.spin * 360}deg`,
-            '--rz-end': `${land.tilt}deg`,
-            animationDelay: `${land.delay}ms`,
-            animationDuration: `${THROW_MS - land.delay}ms`,
-          } as CSSProperties
-          return (
-            <div
-              key={`${roundId}-${i}`}
-              className={`absolute ${stage === 'thrown' ? 'motion-safe:animate-[die-throw_cubic-bezier(0.2,0.7,0.3,1)_both]' : ''}`}
-              style={{
-                ...vars,
-                left: `calc(${land.x}% - ${DIE / 2}px)`,
-                top: `calc(${land.y}% - ${DIE / 2}px)`,
-                transformStyle: 'preserve-3d',
-                transform:
-                  stage === 'settled'
-                    ? `rotateX(${rest.rx}deg) rotateY(${rest.ry}deg) rotateZ(${land.tilt}deg)`
-                    : undefined,
-              }}
-            >
-              {/* ground shadow */}
-              <div className="absolute left-1/2 top-[88%] h-4 w-14 -translate-x-1/2 rounded-[50%] bg-black/45 blur-[3px]" />
-              <Cube size={DIE} />
-            </div>
-          )
-        })}
+      {/* read-out at the bottom once the dice are at rest */}
+      {atRest && (
+        <div className="absolute inset-x-0 bottom-6 flex flex-col items-center gap-2 px-4 motion-safe:animate-[settle_0.4s_ease-out_both]">
+          <div className="flex flex-wrap items-center justify-center gap-3 rounded-full bg-black/65 px-5 py-2">
+            {winners.length === 0 ? (
+              <span className="text-sm text-cream/80">{t('noPairs')}</span>
+            ) : (
+              winners.map(([symbol, k]) => (
+                <span
+                  key={symbol}
+                  className="flex items-center gap-1.5 text-xl font-bold text-marigold"
+                >
+                  <SymbolIcon symbol={symbol} size={30} />
+                  {t(`symbol.${symbol}`)} ×{k}
+                </span>
+              ))
+            )}
+          </div>
+          {/* Seen enough? Skip the rest of the wait and the countdown. */}
+          <Button
+            variant="secondary"
+            className="pointer-events-auto min-h-10 bg-black/60 text-sm"
+            onClick={() => {
+              clearTimers()
+              setStage('done')
+            }}
+          >
+            {t('goToBoard')} →
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

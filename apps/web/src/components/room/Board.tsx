@@ -16,24 +16,31 @@ interface BoardProps {
 // Carved wooden frame (tunal-style) around each symbol tile.
 const tileBase =
   'relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border-[3px] p-2 transition-transform ' +
-  'bg-[linear-gradient(135deg,#f3e6c8,#e4d0a4)] shadow-[inset_0_0_0_3px_#8a5a32,inset_0_0_0_5px_#c9a23a,0_4px_10px_rgba(0,0,0,0.45)]'
+  'bg-[linear-gradient(135deg,#f6d35e,#dfb73f)] shadow-[inset_0_0_0_3px_#8a5a32,inset_0_0_0_5px_#c9a23a,0_4px_10px_rgba(0,0,0,0.45)]'
 
 export default function Board({ snapshot, myBets, canBet, onBet, onCancel }: BoardProps) {
   const t = useT()
-  const showing = snapshot.phase === 'RESULT' || snapshot.phase === 'ROLLING'
+  // The last throw stays marked on the board until the host starts the next round (the server
+  // clears `lastDice` then): green blink for pairs or better, faint red for every other symbol.
+  const showing =
+    snapshot.lastDice.length === 6 &&
+    (snapshot.phase === 'RESULT' || snapshot.phase === 'OPEN' || snapshot.phase === 'PAUSED')
   const matches = (symbol: GameSymbol) => snapshot.lastDice.filter((d) => d === symbol).length
 
   return (
     <Khal>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {SYMBOLS.map((symbol) => {
           const tile = snapshot.board[symbol] ?? { total: 0, bettors: 0 }
           const mine = myBets[symbol] ?? 0
           const k = showing ? matches(symbol) : 0
-          const won = snapshot.phase === 'RESULT' && k >= 2
+          const won = k >= 2
+          const lost = showing && !won
           const frame = won
-            ? 'border-marigold scale-[1.04] motion-safe:animate-[glow_1.2s_ease-in-out_infinite]'
-            : 'border-[#5c3a1e]'
+            ? 'border-jamara scale-[1.04]'
+            : lost
+              ? 'border-tika/70'
+              : 'border-[#5c3a1e]'
           return (
             <div key={symbol} className="relative">
               <button
@@ -44,12 +51,26 @@ export default function Board({ snapshot, myBets, canBet, onBet, onCancel }: Boa
                 }}
                 className={`${tileBase} ${frame} enabled:hover:border-marigold enabled:active:scale-95 disabled:cursor-default`}
               >
-                <SymbolIcon symbol={symbol} size="56%" />
-                <span className="text-sm font-semibold text-wood">{t(`symbol.${symbol}`)}</span>
-                <span className="text-xs text-wood/70 tabular-nums">
+                {won && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-[9px] bg-jamara motion-safe:animate-[win-blink_0.8s_ease-in-out_infinite]"
+                  />
+                )}
+                {lost && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-[9px] bg-tika motion-safe:animate-[single-blink_1.2s_ease-in-out_infinite]"
+                  />
+                )}
+                <SymbolIcon symbol={symbol} size="60%" className="relative" />
+                <span className="relative text-sm font-semibold text-wood sm:text-lg">
+                  {t(`symbol.${symbol}`)}
+                </span>
+                <span className="relative text-xs text-wood/70 tabular-nums sm:text-sm">
                   {formatCoins(tile.total)} · {tile.bettors}👤
                 </span>
-                {snapshot.phase === 'RESULT' && k > 0 && (
+                {k > 0 && (
                   <span className="absolute right-1.5 top-1.5 rounded-full bg-wood px-1.5 text-xs font-bold text-marigold">
                     ×{k}
                   </span>

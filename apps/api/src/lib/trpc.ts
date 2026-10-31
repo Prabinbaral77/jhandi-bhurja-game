@@ -4,6 +4,7 @@ import { AppError } from '@jhandi/protocol/appError'
 import type { AppErrorShape, ErrorCode } from '@jhandi/protocol/errors'
 import { randomUUID } from 'node:crypto'
 import { ZodError, z } from 'zod'
+import { findUserById } from '#repositories/userRepository'
 import { verifyAccessToken } from '#services/tokenService'
 
 export const createContext = ({ req, res }: CreateExpressContextOptions) => ({
@@ -34,6 +35,7 @@ const appToTrpcCode: Partial<Record<ErrorCode, TRPCError['code']>> = {
   NOT_FOUND: 'NOT_FOUND',
   RATE_LIMITED: 'TOO_MANY_REQUESTS',
   ALREADY_CLAIMED: 'CONFLICT',
+  ALREADY_HOSTING: 'CONFLICT',
   INTERNAL: 'INTERNAL_SERVER_ERROR',
 }
 
@@ -91,6 +93,15 @@ const requireUser = t.middleware(async ({ ctx, next }) => {
   return next({ ctx: { ...ctx, userId } })
 })
 
+// Admin checks hit the DB every time: a revoked admin must lose access immediately.
+const requireAdmin = t.middleware(async ({ ctx, next }) => {
+  const userId = (ctx as { userId?: string }).userId
+  const user = userId ? await findUserById(userId) : undefined
+  if (!user?.isAdmin || user.status !== 'ACTIVE') throw new AppError('FORBIDDEN', 'Admins only')
+  return next()
+})
+
 export const router = t.router
 export const publicProcedure = t.procedure.use(appErrorStatus)
 export const protectedProcedure = publicProcedure.use(requireUser)
+export const adminProcedure = protectedProcedure.use(requireAdmin)

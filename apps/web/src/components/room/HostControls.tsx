@@ -23,19 +23,16 @@ export default function HostControls({
     <section className="flex flex-col gap-3 rounded-xl border border-marigold/40 bg-marigold/5 p-4">
       <h2 className="font-semibold text-marigold">{t('host')}</h2>
       <div className="flex flex-wrap gap-2">
-        <Button disabled={!canStart} onClick={actions.startRound}>
-          {t('startRound')}
-        </Button>
-        <Button
-          variant="secondary"
-          disabled={snapshot.phase !== 'BETTING'}
-          onClick={actions.rollNow}
-        >
-          {t('rollNow')}
-        </Button>
-        <Button variant="secondary" disabled={snapshot.phase === 'PAUSED'} onClick={actions.pause}>
-          {t('pauseRoom')}
-        </Button>
+        {/* The host runs the table: open betting, then shake the dice when everyone has bet. */}
+        {snapshot.phase === 'BETTING' ? (
+          <Button className="text-lg" onClick={actions.rollNow}>
+            🎲 {t('shakeDice')}
+          </Button>
+        ) : (
+          <Button className="text-lg" disabled={!canStart} onClick={actions.startRound}>
+            {t('startRound')}
+          </Button>
+        )}
         {snapshot.isPrivate && (
           <Button
             variant="secondary"

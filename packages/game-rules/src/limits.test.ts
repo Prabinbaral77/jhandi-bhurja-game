@@ -8,7 +8,7 @@ describe('room limits', () => {
       maxBetPerSymbol: 1_000,
       maxBetPerPlayerPerRound: 3_000,
       bettingWindowSec: 20,
-      resultDisplaySec: 5,
+      resultDisplaySec: 16,
     })
   })
 

@@ -32,11 +32,19 @@ export const insertUserWithIdentity = async (
     avatarUrl: string | null
     provider: AuthProvider
     subject: string
+    ageConfirmedAt: Date | null
+    signupIpHash: string | null
   },
 ): Promise<User> => {
   const [user] = await tx
     .insert(users)
-    .values({ id: input.userId, displayName: input.displayName, avatarUrl: input.avatarUrl })
+    .values({
+      id: input.userId,
+      displayName: input.displayName,
+      avatarUrl: input.avatarUrl,
+      ageConfirmedAt: input.ageConfirmedAt,
+      signupIpHash: input.signupIpHash,
+    })
     .returning()
   if (!user) throw new Error('User insert returned nothing')
   await tx.insert(authIdentities).values({

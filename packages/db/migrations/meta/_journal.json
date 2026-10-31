@@ -36,6 +36,34 @@
       "when": 1792511981968,
       "tag": "0004_room_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792514644055,
+      "tag": "0005_audit_and_age",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792514644411,
+      "tag": "0006_seed_loss_cap",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792516154099,
+      "tag": "0007_session_timeouts",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793424546909,
+      "tag": "0008_result_display_16",
+      "breakpoints": true
     }
   ]
 }

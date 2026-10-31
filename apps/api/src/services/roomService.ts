@@ -76,7 +76,7 @@ export const createRoom = async (
     })
   } catch (error) {
     if (pgErrorCode(error) === UNIQUE_VIOLATION) {
-      throw new AppError('FORBIDDEN', 'You are already hosting a room. Close it first.')
+      throw new AppError('ALREADY_HOSTING', 'You are already hosting a room. Close it first.')
     }
     throw error
   }

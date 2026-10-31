@@ -2,160 +2,222 @@ import type { GameSymbol } from '@jhandi/game-rules/symbols'
 import type { ReactElement, SVGProps } from 'react'
 
 /**
- * Original vector art for the six Jhandi Burja symbols (docs/art-direction.md §4).
- * Traditional silhouettes kept recognisable at 24 px; Nepali details inside:
- * crown = shirpech with plume, flag = Nepal's double pennant, heart/spade/diamond/club with
- * carved-wood lines, pagoda eaves, Dhaka zigzag and lotus petals. No deity imagery.
+ * The six Jhandi Burja symbols drawn after the hand-carved dice sold in Nepal: red and black
+ * figures cut into yellow plastic, with concentric-ring "eyes", rows of dots, hatching and
+ * beaded arcs. The pale strokes are the grooves showing the die colour underneath.
+ *
+ * `variant="color"` is the full folk figure (dice, board). `variant="inlay"` is a one-colour
+ * silhouette for tiny UI (lobby lists, ticker). No deity imagery (docs/art-direction.md §5).
  */
 
 interface SymbolIconProps extends Omit<SVGProps<SVGSVGElement>, 'children'> {
   symbol: GameSymbol
   size?: number | string
-  // 'color' = full colour (board, dice reveal); 'inlay' = single brass colour (dice, small UI).
   variant?: 'color' | 'inlay'
 }
 
+const RED = '#c8201d'
+const BLACK = '#1f1a14'
+const GROOVE = '#e9c24a' // die colour showing through the carving
 const BRASS = '#C9A23A'
-const BRASS_DARK = '#8A6A1E'
-const TIKA = '#D7262E'
-const CRIMSON = '#C8102E'
-const BLUE = '#1F3F8F'
-const CREAM = '#F3E6C8'
-const WOOD = '#3B2418'
 
-const art: Record<GameSymbol, (inlay: boolean) => ReactElement> = {
-  CROWN: (inlay) => (
+// Concentric "eye": outer ring, inner ring, dot — the signature of these dice.
+const eye = (cx: number, cy: number, r: number, ink: string, key: string) => (
+  <g key={key}>
+    <circle cx={cx} cy={cy} r={r} fill={ink} />
+    <circle cx={cx} cy={cy} r={r * 0.68} fill="none" stroke={GROOVE} strokeWidth={r * 0.16} />
+    <circle cx={cx} cy={cy} r={r * 0.3} fill="none" stroke={GROOVE} strokeWidth={r * 0.16} />
+  </g>
+)
+
+// Rows of short dashes (the stippled fill).
+const dots = (x0: number, y0: number, cols: number, rows: number, step: number, key: string) => {
+  const items: ReactElement[] = []
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      items.push(
+        <rect
+          key={`${key}-${r}-${c}`}
+          x={x0 + c * step + (r % 2) * (step / 2)}
+          y={y0 + r * step}
+          width={step * 0.45}
+          height={step * 0.45}
+          rx={step * 0.1}
+          fill={GROOVE}
+        />,
+      )
+    }
+  }
+  return items
+}
+
+const hatch = (
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  n: number,
+  key: string,
+  vertical = true,
+) =>
+  Array.from({ length: n }, (_, i) => {
+    const t = (i + 1) / (n + 1)
+    return vertical ? (
+      <line
+        key={`${key}-${i}`}
+        x1={x0 + (x1 - x0) * t}
+        y1={y0}
+        x2={x0 + (x1 - x0) * t}
+        y2={y1}
+        stroke={GROOVE}
+        strokeWidth="2.2"
+      />
+    ) : (
+      <line
+        key={`${key}-${i}`}
+        x1={x0}
+        y1={y0 + (y1 - y0) * t}
+        x2={x1}
+        y2={y0 + (y1 - y0) * t}
+        stroke={GROOVE}
+        strokeWidth="2.2"
+      />
+    )
+  })
+
+const HEART_PATH = 'M50 90C30 74 12 60 12 40a19 19 0 0 1 38-6 19 19 0 0 1 38 6c0 20-18 34-38 50z'
+const SPADE_PATH =
+  'M50 8C36 26 14 40 14 58a17 17 0 0 0 31 10c-1 10-7 17-14 22h38c-7-5-13-12-14-22a17 17 0 0 0 31-10c0-18-22-32-36-50z'
+
+const folk: Record<GameSymbol, () => ReactElement> = {
+  HEART: () => (
     <>
-      {/* plume */}
-      <path
-        d="M50 8c-6 8-12 14-9 26 2-8 6-13 9-16 3 3 7 8 9 16 3-12-3-18-9-26z"
-        fill={inlay ? BRASS : BRASS}
-      />
-      {/* dome */}
-      <path d="M22 60c0-18 12-30 28-30s28 12 28 30z" fill={inlay ? BRASS : TIKA} />
-      <path d="M50 30v30" stroke={inlay ? BRASS_DARK : BRASS} strokeWidth="3" />
-      <path
-        d="M30 52c6-10 14-14 20-14s14 4 20 14"
-        fill="none"
-        stroke={inlay ? BRASS_DARK : BRASS}
-        strokeWidth="3"
-      />
-      {/* band */}
-      <rect x="18" y="58" width="64" height="16" rx="4" fill={inlay ? BRASS : BRASS} />
-      <rect
-        x="18"
-        y="58"
-        width="64"
-        height="16"
-        rx="4"
-        fill="none"
-        stroke={BRASS_DARK}
-        strokeWidth="2"
-      />
-      {/* jewels */}
-      <circle cx="32" cy="66" r="3.5" fill={inlay ? BRASS_DARK : TIKA} />
-      <circle cx="50" cy="66" r="4" fill={inlay ? BRASS_DARK : '#2E7D32'} />
-      <circle cx="68" cy="66" r="3.5" fill={inlay ? BRASS_DARK : TIKA} />
-      {/* base */}
-      <rect x="22" y="76" width="56" height="8" rx="3" fill={inlay ? BRASS : WOOD} />
+      <path d={HEART_PATH} fill={RED} />
+      <g clipPath="url(#heart-clip)">{dots(28, 52, 6, 3, 8, 'hd')}</g>
+      {eye(31, 38, 14, RED, 'he1')}
+      {eye(69, 38, 14, RED, 'he2')}
+      <defs>
+        <clipPath id="heart-clip">
+          <path d={HEART_PATH} transform="translate(50 50) scale(0.8) translate(-50 -50)" />
+        </clipPath>
+      </defs>
     </>
   ),
-  FLAG: (inlay) => (
+  SPADE: () => (
     <>
-      {/* pole */}
-      <rect x="14" y="8" width="5" height="84" rx="2" fill={inlay ? BRASS : WOOD} />
-      {/* double pennant: blue border then crimson */}
-      <path d="M19 10l56 26H44l32 30H19z" fill={inlay ? BRASS : BLUE} />
-      <path d="M23 16l42 20H40l28 26H23z" fill={inlay ? BRASS_DARK : CRIMSON} />
-      {/* moon */}
-      <path d="M34 32a6 6 0 1 0 12 0 8 8 0 0 1-12 0z" fill={inlay ? BRASS : CREAM} />
-      {/* sun */}
-      <circle cx="40" cy="54" r="5" fill={inlay ? BRASS : CREAM} />
-      {Array.from({ length: 8 }, (_, i) => {
-        const a = (i * Math.PI) / 4
+      <path d={SPADE_PATH} fill={BLACK} />
+      <g clipPath="url(#spade-clip)">{dots(32, 24, 6, 3, 7, 'sd')}</g>
+      {eye(33, 58, 13, BLACK, 'se1')}
+      {eye(67, 58, 13, BLACK, 'se2')}
+      <path d="M50 70v18" stroke={GROOVE} strokeWidth="2" />
+      <defs>
+        <clipPath id="spade-clip">
+          <path d={SPADE_PATH} transform="translate(50 50) scale(0.82) translate(-50 -50)" />
+        </clipPath>
+      </defs>
+    </>
+  ),
+  CLUB: () => (
+    <>
+      {eye(50, 28, 17, BLACK, 'ce1')}
+      {eye(28, 60, 17, BLACK, 'ce2')}
+      {eye(72, 60, 17, BLACK, 'ce3')}
+      <path d="M44 66h12l6 24H38z" fill={BLACK} />
+      <path d="M50 70v16" stroke={GROOVE} strokeWidth="2" />
+    </>
+  ),
+  DIAMOND: () => (
+    <>
+      <path d="M50 6L88 50 50 94 12 50z" fill={RED} />
+      <path d="M50 16L78 50 50 84 22 50z" fill="none" stroke={GROOVE} strokeWidth="2.2" />
+      <g clipPath="url(#diamond-clip)">{hatch(24, 20, 76, 80, 7, 'dh', false)}</g>
+      <g clipPath="url(#diamond-clip)">{hatch(26, 20, 74, 80, 5, 'dv')}</g>
+      <ellipse cx="50" cy="50" rx="13" ry="10" fill={RED} stroke={GROOVE} strokeWidth="2.4" />
+      <circle cx="50" cy="50" r="4" fill={GROOVE} />
+      <defs>
+        <clipPath id="diamond-clip">
+          <path d="M50 20L74 50 50 80 26 50z" />
+        </clipPath>
+      </defs>
+    </>
+  ),
+  FLAG: () => (
+    <>
+      {/* butterfly-like double pennant: two red triangles meeting at the pole */}
+      <path
+        d="M50 50L14 14l8 36-8 36z"
+        fill={RED}
+        stroke={BLACK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M50 50l36-36-8 36 8 36z"
+        fill={RED}
+        stroke={BLACK}
+        strokeWidth="4"
+        strokeLinejoin="round"
+      />
+      {hatch(18, 30, 42, 70, 4, 'fh1')}
+      {hatch(58, 30, 82, 70, 4, 'fh2')}
+      {/* crossed black staves */}
+      <path d="M22 12L78 88M78 12L22 88" stroke={BLACK} strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M50 10v80" stroke={BLACK} strokeWidth="3.5" strokeLinecap="round" />
+      <circle cx="50" cy="50" r="5" fill={GROOVE} stroke={BLACK} strokeWidth="2" />
+    </>
+  ),
+  CROWN: () => (
+    <>
+      {/* beaded black arc around the dome */}
+      {Array.from({ length: 13 }, (_, i) => {
+        const a = Math.PI + (i / 12) * Math.PI
         return (
-          <line
-            key={i}
-            x1={40 + Math.cos(a) * 6.5}
-            y1={54 + Math.sin(a) * 6.5}
-            x2={40 + Math.cos(a) * 9}
-            y2={54 + Math.sin(a) * 9}
-            stroke={inlay ? BRASS : CREAM}
-            strokeWidth="2"
-            strokeLinecap="round"
+          <circle
+            key={`b${i}`}
+            cx={50 + Math.cos(a) * 40}
+            cy={58 + Math.sin(a) * 40}
+            r="4.2"
+            fill={BLACK}
           />
         )
       })}
+      {/* dome */}
+      <path d="M20 60a30 30 0 0 1 60 0z" fill={RED} />
+      <path d="M20 60a30 30 0 0 1 60 0" fill="none" stroke={BLACK} strokeWidth="4" />
+      {hatch(26, 36, 74, 58, 6, 'ch')}
+      <circle cx="50" cy="28" r="4.5" fill={GROOVE} stroke={BLACK} strokeWidth="2" />
+      {/* black rim with beads */}
+      <rect x="16" y="60" width="68" height="7" rx="3" fill={BLACK} />
+      {Array.from({ length: 7 }, (_, i) => (
+        <circle key={`r${i}`} cx={24 + i * 8.7} cy={63.5} r="1.6" fill={GROOVE} />
+      ))}
+      {/* red hatched base band */}
+      <path d="M14 74h72l-6 14H20z" fill={RED} />
+      {hatch(20, 75, 80, 87, 9, 'cb')}
     </>
   ),
-  HEART: (inlay) => (
+}
+
+const silhouette: Record<GameSymbol, (ink: string) => ReactElement> = {
+  HEART: (ink) => <path d={HEART_PATH} fill={ink} />,
+  SPADE: (ink) => <path d={SPADE_PATH} fill={ink} />,
+  CLUB: (ink) => (
     <>
-      <path
-        d="M50 86C30 70 14 56 14 38a18 18 0 0 1 36-6 18 18 0 0 1 36 6c0 18-16 32-36 48z"
-        fill={inlay ? BRASS : TIKA}
-      />
-      {/* carved inner line */}
-      <path
-        d="M50 74C36 62 24 52 24 39a9 9 0 0 1 18-2l8 8 8-8a9 9 0 0 1 18 2c0 13-12 23-26 35z"
-        fill="none"
-        stroke={inlay ? BRASS_DARK : BRASS}
-        strokeWidth="2.5"
-      />
+      <circle cx="50" cy="28" r="17" fill={ink} />
+      <circle cx="28" cy="60" r="17" fill={ink} />
+      <circle cx="72" cy="60" r="17" fill={ink} />
+      <path d="M44 66h12l6 24H38z" fill={ink} />
     </>
   ),
-  SPADE: (inlay) => (
-    <>
-      <path
-        d="M50 10C36 28 16 40 16 56a16 16 0 0 0 30 8c-2 10-8 16-14 20h36c-6-4-12-10-14-20a16 16 0 0 0 30-8c0-16-20-28-34-46z"
-        fill={inlay ? BRASS : WOOD}
-      />
-      {/* pagoda eaves */}
-      <path
-        d="M28 46q22-10 44 0"
-        fill="none"
-        stroke={inlay ? BRASS_DARK : BRASS}
-        strokeWidth="2.5"
-      />
-      <path
-        d="M34 34q16-8 32 0"
-        fill="none"
-        stroke={inlay ? BRASS_DARK : BRASS}
-        strokeWidth="2.5"
-      />
-      <circle cx="50" cy="22" r="2.5" fill={inlay ? BRASS_DARK : BRASS} />
-    </>
+  DIAMOND: (ink) => <path d="M50 6L88 50 50 94 12 50z" fill={ink} />,
+  FLAG: (ink) => (
+    <path d="M50 50L14 14l8 36-8 36zM50 50l36-36-8 36 8 36zM47 8h6v84h-6z" fill={ink} />
   ),
-  DIAMOND: (inlay) => (
+  CROWN: (ink) => (
     <>
-      <path d="M50 8L84 50 50 92 16 50z" fill={inlay ? BRASS : TIKA} />
-      {/* Dhaka zigzag */}
-      <path
-        d="M30 50l6-7 6 7 8-7 8 7 6-7 6 7"
-        fill="none"
-        stroke={inlay ? BRASS_DARK : BRASS}
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M36 38l7-6 7 6 7-6 7 6M36 62l7 6 7-6 7 6 7-6"
-        fill="none"
-        stroke={inlay ? BRASS_DARK : CREAM}
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </>
-  ),
-  CLUB: (inlay) => (
-    <>
-      <circle cx="50" cy="30" r="17" fill={inlay ? BRASS : WOOD} />
-      <circle cx="30" cy="56" r="17" fill={inlay ? BRASS : WOOD} />
-      <circle cx="70" cy="56" r="17" fill={inlay ? BRASS : WOOD} />
-      <path d="M44 60h12l6 28H38z" fill={inlay ? BRASS : WOOD} />
-      {/* lotus petals */}
-      <path
-        d="M50 20q6 8 0 18q-6-10 0-18zM30 46q6 8 0 18q-6-10 0-18zM70 46q6 8 0 18q-6-10 0-18z"
-        fill={inlay ? BRASS_DARK : BRASS}
-      />
+      <path d="M20 60a30 30 0 0 1 60 0z" fill={ink} />
+      <rect x="16" y="60" width="68" height="7" rx="3" fill={ink} />
+      <path d="M14 74h72l-6 14H20z" fill={ink} />
     </>
   ),
 }
@@ -168,7 +230,7 @@ export default function SymbolIcon({
 }: SymbolIconProps) {
   return (
     <svg viewBox="0 0 100 100" width={size} height={size} aria-hidden focusable="false" {...rest}>
-      {art[symbol](variant === 'inlay')}
+      {variant === 'color' ? folk[symbol]() : silhouette[symbol](BRASS)}
     </svg>
   )
 }

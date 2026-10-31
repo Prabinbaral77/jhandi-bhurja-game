@@ -1,6 +1,6 @@
 import type { DbOrTx } from '@jhandi/db/database'
 import { bets, rounds } from '@jhandi/db/schema/rooms'
-import { and, desc, eq, inArray, isNotNull, max, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, isNotNull, max, sql } from 'drizzle-orm'
 import { db } from '#lib/db'
 
 export const nextRoundNo = async (roomId: string): Promise<number> => {
@@ -135,4 +135,15 @@ export const markBetsRefunded = async (tx: DbOrTx, roundId: string) => {
     .update(bets)
     .set({ status: 'REFUNDED', payout: bets.amount })
     .where(and(eq(bets.roundId, roundId), eq(bets.status, 'PLACED')))
+}
+
+// Net coins a user has lost on settled bets since `since` (positive = lost). Responsible play.
+export const netLostSince = async (userId: string, since: Date): Promise<number> => {
+  const [row] = await db
+    .select({
+      lost: sql<number>`coalesce(sum(${bets.amount} - coalesce(${bets.payout}, 0)), 0)::float8`,
+    })
+    .from(bets)
+    .where(and(eq(bets.userId, userId), isNotNull(bets.payout), gte(bets.createdAt, since)))
+  return row?.lost ?? 0
 }
