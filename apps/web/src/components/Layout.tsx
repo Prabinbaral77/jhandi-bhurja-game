@@ -84,6 +84,20 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
       )}
       <main className="flex-1 py-6">{children}</main>
+      <footer className="flex flex-col gap-1 border-t border-cream/10 py-3 text-xs text-cream/50">
+        <p>{t('noCashValue')}</p>
+        <p className="flex flex-wrap gap-x-3">
+          <Link to="/legal/terms" className="hover:underline">
+            {t('terms')}
+          </Link>
+          <Link to="/legal/privacy" className="hover:underline">
+            {t('privacy')}
+          </Link>
+          <Link to="/legal/responsible-play" className="hover:underline">
+            {t('responsiblePlay')}
+          </Link>
+        </p>
+      </footer>
     </div>
   )
 }

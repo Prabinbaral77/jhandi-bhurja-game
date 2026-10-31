@@ -12,6 +12,7 @@ import SignInPage from '@/pages/SignInPage'
 const AdminPage = lazy(() => import('@/pages/AdminPage'))
 const CreateRoomPage = lazy(() => import('@/pages/CreateRoomPage'))
 const InvitePage = lazy(() => import('@/pages/InvitePage'))
+const LegalPage = lazy(() => import('@/pages/LegalPage'))
 const RoomPage = lazy(() => import('@/pages/RoomPage'))
 const RoomsPage = lazy(() => import('@/pages/RoomsPage'))
 const StatusPage = lazy(() => import('@/pages/StatusPage'))
@@ -34,6 +35,8 @@ export default function App() {
               <Routes>
                 <Route path="/signin" element={<SignInPage />} />
                 <Route path="/status" element={<StatusPage />} />
+                <Route path="/legal/:doc" element={<LegalPage />} />
+                <Route path="/legal" element={<Navigate to="/legal/terms" replace />} />
                 <Route
                   path="/welcome"
                   element={

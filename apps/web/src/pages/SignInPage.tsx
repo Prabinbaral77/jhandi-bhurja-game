@@ -1,7 +1,7 @@
 import type { SignInOutput } from '@jhandi/protocol/auth'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useCallback, useState, type SubmitEvent } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router'
+import { Navigate, useLocation, useNavigate, Link } from 'react-router'
 import Button from '@/components/Button'
 import ErrorText from '@/components/ErrorText'
 import GoogleSignInButton from '@/components/GoogleSignInButton'
@@ -104,6 +104,20 @@ export default function SignInPage() {
           />
           <span>{t('ageConfirm')}</span>
         </label>
+        <p className="text-xs text-cream/60">
+          {t('legalAgreePrefix')}{' '}
+          <Link to="/legal/terms" className="underline">
+            {t('terms')}
+          </Link>
+          {' · '}
+          <Link to="/legal/privacy" className="underline">
+            {t('privacy')}
+          </Link>
+          {' · '}
+          <Link to="/legal/responsible-play" className="underline">
+            {t('responsiblePlay')}
+          </Link>
+        </p>
 
         {googleEnabled && (
           <div className="flex flex-col items-center gap-2">

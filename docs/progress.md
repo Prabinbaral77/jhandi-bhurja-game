@@ -191,6 +191,11 @@ Branch: `feat/m7-hardening`.
 - Every admin action appears in the audit log ✅ (API tests)
 - Unit tests: ledger 10, game-rules 55, game-server 6, API 22 ✅
 
+## Legal pages and CSP fix (2026-10-31)
+
+- [x] Public pages `/legal/terms`, `/legal/privacy`, `/legal/responsible-play` in Nepali and English — `apps/web/src/content/legal.ts` (content; operator name/e-mail in `OPERATOR`, **fill in before launch**), `pages/LegalPage.tsx`; links in the footer (`Layout.tsx`) and under the 18+ checkbox at sign-in; "18+ · virtual coins, no cash value" notice in the footer and on every legal page
+- [x] Bug: "Failed to fetch" when opening a room — the CSP `connect-src` listed the game server as `ws://` only, but Colyseus matchmakes over HTTP first. `vite.config.ts` now fills `%CSP_CONNECT_SRC%` with the API plus the game server as both ws(s) and http(s); `public/_headers` notes the same
+
 ## Admin dashboard, admin-by-e-mail, Redis cache, load test (2026-10-31)
 
 - [x] **Admin overview** (`admin.overview`, cached 5 s, auto-refresh 10 s in the UI): live rooms, rounds in play, people seated by role, platform fee today / 7 days / all time / per round, coins in wallets / room banks / escrow, bonuses issued, admin adjustments net, users total / new today / bet today / frozen, fee per Kathmandu day (14 days) — `apps/api/src/{repositories/adminRepository,services/adminService,controllers/adminRouter}.ts`, `packages/protocol/src/admin.ts`, `apps/web/src/pages/AdminPage.tsx`
