@@ -16,8 +16,8 @@ const inputClass =
   'w-full rounded-lg border border-cream/20 bg-wood px-4 py-3 text-lg tracking-wide text-cream placeholder:text-cream/30 focus:border-marigold focus:outline-none'
 
 /**
- * Sign-in: Google first (one tap, no SMS), phone OTP as the fallback. Both need the 18+
- * confirmation. A new account gets the sign-up bonus and lands on the welcome screen.
+ * Sign-in: Google only once a client ID is configured (one tap, no SMS). Phone OTP is shown
+ * only while Google is not set up (development). Both need the 18+ confirmation. A new account gets the sign-up bonus and lands on the welcome screen.
  */
 export default function SignInPage() {
   const t = useT()
@@ -28,7 +28,6 @@ export default function SignInPage() {
   const setSession = useAuthStore((s) => s.setSession)
 
   const [ageConfirmed, setAgeConfirmed] = useState(false)
-  const [showPhone, setShowPhone] = useState(false)
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [sent, setSent] = useState<{ phone: string; resendAt: number; devCode?: string } | null>(
@@ -82,8 +81,8 @@ export default function SignInPage() {
     event.preventDefault()
     if (sent) verifyOtp.mutate({ phone: sent.phone, code })
   }
-  // Phone is the only way in until Google is configured.
-  const phoneVisible = showPhone || !googleEnabled
+  // Phone OTP exists only as the development fallback while Google isn't configured.
+  const phoneVisible = !googleEnabled
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 pt-6">
@@ -117,18 +116,6 @@ export default function SignInPage() {
           </div>
         )}
       </section>
-
-      {googleEnabled && !showPhone && (
-        <Button
-          variant="ghost"
-          className="text-sm"
-          onClick={() => {
-            setShowPhone(true)
-          }}
-        >
-          {t('usePhoneInstead')}
-        </Button>
-      )}
 
       {phoneVisible &&
         (sent === null ? (
