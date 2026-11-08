@@ -30,7 +30,7 @@ const toWipe = (
 const before: Record<string, number> = {}
 for (const t of toWipe) {
   const [row] = await sql.unsafe<{ n: number }[]>(`select count(*)::int as n from "jhandi"."${t}"`)
-  before[t] = Number(row?.n ?? 0)
+  before[t] = row?.n ?? 0
 }
 console.table(before)
 

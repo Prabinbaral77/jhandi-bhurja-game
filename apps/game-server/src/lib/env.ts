@@ -17,6 +17,8 @@ const envSchema = z.object({
   MATCHMAKE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   // Shared room registry + pub/sub across several game-server nodes. Optional on one node.
   REDIS_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
+  // Also serve the API (`/v1/trpc`) from this process: one host, one port (docs/deploy.md §0c).
+  SERVE_API: z.preprocess((value) => value === 'true' || value === '1', z.boolean()).default(false),
 })
 
 export type Env = z.infer<typeof envSchema>

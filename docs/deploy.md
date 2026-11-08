@@ -45,7 +45,7 @@ stay up. A free always-on VM next to the database is the only free option that p
 
 Files: `deploy/oracle/{setup.sh,deploy.sh,nginx-game.conf,jhandi-api.service,jhandi-game.service,.env.production.example}`.
 
-## 0b. Netlify for the web + Render for the servers (quickest, also free)
+## 0b. Netlify for the web + Render for the servers (two services; superseded by §0c)
 
 The web app is static, so Netlify serves it well. **Netlify cannot run the API or the game
 server** (long-running Node + WebSocket), so those still need a host: the Oracle VM (§0, best) or
@@ -71,6 +71,30 @@ and `render.yaml` for this.
      `/game/*  https://<game-site>.netlify.app/game/:splat  200`.
 3. **Google Cloud**: add the final web origin to Authorized JavaScript origins.
 4. Open the site, sign in, host a room, play a round; check `/admin`.
+
+## 0c. No card at all: Netlify + Render, one combined service (free, no card)
+
+Oracle needs a card for its identity check; Render and Netlify do not. Render's free plan gives
+**750 instance-hours a month**, which is one service running all month — so the game server
+**also serves the API** in the same process (`SERVE_API=true`): one URL for both, one free
+service. `render.yaml` is set up for exactly that. Trade-offs: the service sleeps after 15 idle
+minutes and takes ~30–60 s to wake (the first visitor of the evening waits), region Singapore
+(~60 ms to the Mumbai database, fine), 512 MB RAM (enough for a few hundred players).
+
+1. **Render**: sign up with GitHub/e-mail (no card) → New → **Blueprint** → connect the repo (push
+   it to GitHub first) → set `DATABASE_URL`, `WEB_ORIGIN`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS` →
+   Apply. Note the URL, e.g. `https://jhandi.onrender.com`.
+2. **Netlify**: Import from Git → env vars `VITE_API_URL=https://jhandi.onrender.com`,
+   `VITE_GAME_SERVER_URL=wss://jhandi.onrender.com`, `VITE_GOOGLE_CLIENT_ID`. Deploy. Add the
+   custom domain `game.prabinbaral.com.np` if wanted; then set Render's `WEB_ORIGIN` to it.
+3. **Keep it awake** (optional): UptimeRobot (free, no card) HTTP monitor on
+   `https://jhandi.onrender.com/health` every 5 minutes. One service × 24 h × 31 days = 744 h,
+   inside the 750 h allowance.
+4. Google Cloud: add the web origin. Supabase: Data API off. Run `pnpm db:migrate` once from
+   your machine.
+
+Locally the same mode runs with `SERVE_API=true pnpm --filter @jhandi/game-server dev`
+(API at `http://localhost:2567/v1/trpc`).
 
 ## 1. Pieces and where they run
 

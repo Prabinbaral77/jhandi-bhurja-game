@@ -1,42 +1,10 @@
-# Render Blueprint: API + game server on the FREE plan (sleeps after 15 min idle, ~1 min wake;
-# fine for testing the deployed stack, not for a live Dashain evening — see docs/deploy.md).
-# Deploy: Render dashboard → New → Blueprint → this repo. Fill the sync: false values once.
+# Render Blueprint — ONE free web service runs the game server AND the API (SERVE_API=true).
+# Free plan: no card needed, 750 instance-hours/month (one always-on service fits), sleeps after
+# 15 min idle and wakes in ~30-60 s on the next request. Region Singapore (~60 ms to the Mumbai DB).
+# Deploy: Render dashboard → New → Blueprint → this repo → fill the `sync: false` values.
 services:
   - type: web
-    name: jhandi-api
-    runtime: node
-    region: singapore
-    plan: free
-    buildCommand: corepack enable && pnpm install --frozen-lockfile
-    startCommand: cd apps/api && node --import tsx src/server.ts
-    healthCheckPath: /v1/trpc/health.check
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: API_PORT
-        fromService: { type: web, name: jhandi-api, envVarKey: PORT }
-      - key: TRUST_PROXY
-        value: "1"
-      - key: DATABASE_URL
-        sync: false
-      - key: DATABASE_POOL_MAX
-        value: "5"
-      - key: AUTH_SECRET
-        generateValue: true
-      - key: WEB_ORIGIN
-        sync: false # https://<your-netlify-site> or https://game.prabinbaral.com.np
-      - key: WEB_BASE_PATH
-        value: ""
-      - key: API_PUBLIC_PREFIX
-        value: ""
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: ADMIN_EMAILS
-        sync: false
-      - key: REDIS_URL
-        value: ""
-  - type: web
-    name: jhandi-game
+    name: jhandi
     runtime: node
     region: singapore
     plan: free
@@ -46,17 +14,27 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: SERVE_API
+        value: "true"
       - key: GAME_SERVER_PORT
-        fromService: { type: web, name: jhandi-game, envVarKey: PORT }
+        fromService: { type: web, name: jhandi, envVarKey: PORT }
       - key: TRUST_PROXY
         value: "1"
       - key: DATABASE_URL
-        sync: false
+        sync: false # Supabase SESSION pooler string (port 5432)
       - key: DATABASE_POOL_MAX
-        value: "5"
+        value: "4"
       - key: AUTH_SECRET
-        fromService: { type: web, name: jhandi-api, envVarKey: AUTH_SECRET }
+        generateValue: true
       - key: WEB_ORIGIN
+        sync: false # e.g. https://jhandi.netlify.app or https://game.prabinbaral.com.np
+      - key: WEB_BASE_PATH
+        value: ""
+      - key: API_PUBLIC_PREFIX
+        value: ""
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: ADMIN_EMAILS
         sync: false
       - key: REDIS_URL
         value: ""

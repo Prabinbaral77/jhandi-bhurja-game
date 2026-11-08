@@ -39,9 +39,15 @@ const server = defineServer({
     // One Colyseus room per DB room: clients joinOrCreate with the same dbRoomId.
     jhandi: defineRoom(JhandiRoom).filterBy(['dbRoomId']).enableRealtimeListing(),
   },
-  express: (app) => {
+  express: async (app) => {
     app.disable('x-powered-by')
     app.set('trust proxy', env.TRUST_PROXY)
+    if (env.SERVE_API) {
+      // Same process serves the API: free single-service hosting (docs/deploy.md §0c).
+      const api = await import('@jhandi/api/app')
+      app.use(api.createApiApp())
+      void api.warmUpDatabase()
+    }
     app.get('/health', (_req, res) => {
       const health: Health = {
         ok: true,
@@ -56,6 +62,7 @@ const server = defineServer({
 
 server.onShutdown(async () => {
   await sql.end({ timeout: 5 })
+  if (env.SERVE_API) await (await import('@jhandi/api/app')).closeApi()
 })
 
 await server.listen(env.GAME_SERVER_PORT)
