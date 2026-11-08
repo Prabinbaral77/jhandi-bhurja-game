@@ -12,17 +12,20 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 
 echo "== packages"
 apt-get update -y
-apt-get install -y curl git nginx redis-server certbot python3-certbot-nginx ufw
+DEBIAN_FRONTEND=noninteractive apt-get install -y curl git nginx redis-server certbot python3-certbot-nginx rsync
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt-get install -y nodejs
 corepack enable
 corepack prepare pnpm@10 --activate
 
-echo "== firewall (Oracle also needs ingress rules for 80/443 in the VCN security list)"
-ufw allow OpenSSH
-ufw allow 80/tcp
-ufw allow 443/tcp
-ufw --force enable
+echo "== firewall: Oracle's Ubuntu image ships iptables rules that reject everything but 22"
+# (the VCN Security List must ALSO allow 80/443 — done in the Oracle web console)
+DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
+for port in 80 443; do
+  iptables -C INPUT -p tcp --dport "$port" -j ACCEPT 2>/dev/null || \
+    iptables -I INPUT 5 -p tcp --dport "$port" -m state --state NEW -j ACCEPT
+done
+netfilter-persistent save
 
 echo "== redis: local only, no persistence needed for caches/limits"
 sed -i 's/^# maxmemory .*/maxmemory 128mb/; s/^# maxmemory-policy .*/maxmemory-policy allkeys-lru/' /etc/redis/redis.conf
@@ -30,8 +33,9 @@ systemctl enable --now redis-server
 
 echo "== app user + repo"
 id -u jhandi >/dev/null 2>&1 || useradd --system --create-home --shell /bin/bash jhandi
-if [ ! -d /srv/jhandi/.git ]; then
-  git clone "$REPO" /srv/jhandi
+# Code arrives either by `git clone` (if the repo is on GitHub) or by upload.sh from your Mac.
+if [ ! -f /srv/jhandi/package.json ]; then
+  git clone "$REPO" /srv/jhandi || { echo "!! no code in /srv/jhandi: run deploy/oracle/upload.sh from your computer, then re-run setup.sh"; exit 1; }
 fi
 chown -R jhandi:jhandi /srv/jhandi
 if [ ! -f /srv/jhandi/.env ]; then

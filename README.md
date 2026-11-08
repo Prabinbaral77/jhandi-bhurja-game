@@ -16,6 +16,7 @@ Real-time, multi-room Jhandi Burja for Dashain, with Nepali heritage art. Virtua
 | [docs/conventions.md](docs/conventions.md)     | How code is written in this repo                     |
 | [docs/security.md](docs/security.md)           | Security checklist, threat model, deploy-day steps   |
 | [docs/deploy.md](docs/deploy.md)               | Free hosting (Oracle VM Mumbai), nginx, env, scripts |
+| [docs/deploy-oracle-guide.md](docs/deploy-oracle-guide.md) | Beginner step-by-step for the Oracle VM           |
 
 ## Requirements
 

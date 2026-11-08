@@ -3,7 +3,8 @@
 #   sudo bash /srv/jhandi/deploy/oracle/deploy.sh
 set -euo pipefail
 cd /srv/jhandi
-sudo -u jhandi git pull --ff-only
+if [ -d .git ]; then sudo -u jhandi git pull --ff-only; fi
+chown -R jhandi:jhandi /srv/jhandi
 sudo -u jhandi pnpm install --frozen-lockfile
 sudo -u jhandi pnpm -r typecheck
 sudo -u jhandi pnpm db:migrate
