@@ -45,10 +45,29 @@ export const useJhandiRoom = (dbRoomId: string) => {
     let cancelled = false
     let joined: Room | null = null
 
+    // Matchmaking and the WebSocket connect can fail transiently (seat reservation expired on a
+    // slow network, server restarting/waking): retry a few times before giving up.
+    const joinWithRetry = async (accessToken: string): Promise<Room> => {
+      let attempt = 0
+      for (;;) {
+        try {
+          return await gameClient.joinOrCreate('jhandi', { dbRoomId, accessToken })
+        } catch (error) {
+          attempt += 1
+          const message = error instanceof Error ? error.message : String(error)
+          const transient = /reservation|expired|timeout|network|failed to fetch|502|503/i.test(
+            message,
+          )
+          if (cancelled || attempt >= 4 || !transient) throw error
+          await new Promise((resolve) => setTimeout(resolve, 800 * attempt))
+        }
+      }
+    }
+
     const connect = async () => {
       const accessToken = await getValidAccessToken()
       if (!accessToken) throw new Error('Please sign in again')
-      const room = await gameClient.joinOrCreate('jhandi', { dbRoomId, accessToken })
+      const room = await joinWithRetry(accessToken)
       if (cancelled) {
         void room.leave()
         return
@@ -92,10 +111,25 @@ export const useJhandiRoom = (dbRoomId: string) => {
         s.set({ lastError: null })
       })
       room.onLeave((code: number) => {
-        // 4003 = removed by the host; 4001 = this account opened the room elsewhere.
-        s.set({
-          connection: 'closed',
-          connectionError: code === 4003 ? 'REMOVED' : code === 4001 ? 'OPENED_ELSEWHERE' : null,
+        if (cancelled) return
+        // 4003 = removed by the host; 4001 = this account opened the room elsewhere; 1000 = we
+        // left on purpose. Anything else (server restart, free host sleeping, lost signal) is
+        // not the player's doing: get back into the room automatically.
+        if (code === 4003 || code === 4001 || code === 1000) {
+          s.set({
+            connection: 'closed',
+            connectionError: code === 4003 ? 'REMOVED' : code === 4001 ? 'OPENED_ELSEWHERE' : null,
+          })
+          return
+        }
+        roomRef.current = null
+        s.set({ connection: 'connecting' })
+        connect().catch((error: unknown) => {
+          if (cancelled) return
+          s.set({
+            connection: 'error',
+            connectionError: error instanceof Error ? error.message : 'Could not rejoin the room',
+          })
         })
       })
       room.onError((_code: number, message?: string) => {

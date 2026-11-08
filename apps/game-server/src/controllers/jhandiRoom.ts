@@ -152,6 +152,9 @@ export class JhandiRoom extends Room<{
   // ---------- lifecycle ----------
 
   override async onCreate(options: unknown): Promise<void> {
+    // A phone on a slow network, or a free-tier host still waking up, can take a while between
+    // matchmaking and the WebSocket connect; the default 15 s shows "seat reservation expired".
+    this.seatReservationTimeout = 60
     const { dbRoomId } = createOptionsSchema.parse(options)
     const found = await findRoom(dbRoomId)
     if (!found || found.room.status === 'CLOSED') throw new Error('Room not found or closed')

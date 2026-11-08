@@ -23,6 +23,9 @@ services:
       # Proxy hops in front of the app: Render's edge (1) + Netlify's /api proxy (1).
       - key: TRUST_PROXY
         value: "2"
+      # Seconds a matchmade seat stays reserved while the WebSocket connects (default 15).
+      - key: COLYSEUS_SEAT_RESERVATION_TIME
+        value: "60"
       - key: DATABASE_URL
         sync: false # Supabase SESSION pooler string (port 5432)
       - key: DATABASE_POOL_MAX
