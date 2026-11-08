@@ -11,6 +11,8 @@ interface BoardProps {
   canBet: boolean
   onBet: (symbol: GameSymbol) => void
   onCancel: (symbol: GameSymbol) => void
+  // Tapped a tile while betting is not possible: the page explains why.
+  onBlocked: () => void
 }
 
 // Carved wooden frame (tunal-style) around each symbol tile.
@@ -18,7 +20,14 @@ const tileBase =
   'relative flex aspect-square w-full flex-col items-center justify-center gap-1 rounded-xl border-[3px] p-2 transition-transform ' +
   'bg-[linear-gradient(135deg,#f6d35e,#dfb73f)] shadow-[inset_0_0_0_3px_#8a5a32,inset_0_0_0_5px_#c9a23a,0_4px_10px_rgba(0,0,0,0.45)]'
 
-export default function Board({ snapshot, myBets, canBet, onBet, onCancel }: BoardProps) {
+export default function Board({
+  snapshot,
+  myBets,
+  canBet,
+  onBet,
+  onCancel,
+  onBlocked,
+}: BoardProps) {
   const t = useT()
   // The last throw stays marked on the board until the host starts the next round (the server
   // clears `lastDice` then): green blink for pairs or better, faint red for every other symbol.
@@ -45,11 +54,12 @@ export default function Board({ snapshot, myBets, canBet, onBet, onCancel }: Boa
             <div key={symbol} className="relative">
               <button
                 type="button"
-                disabled={!canBet}
+                aria-disabled={!canBet}
                 onClick={() => {
-                  onBet(symbol)
+                  if (canBet) onBet(symbol)
+                  else onBlocked()
                 }}
-                className={`${tileBase} ${frame} enabled:hover:border-marigold enabled:active:scale-95 disabled:cursor-default`}
+                className={`${tileBase} ${frame} ${canBet ? 'hover:border-marigold active:scale-95' : 'cursor-default'}`}
               >
                 {won && (
                   <span

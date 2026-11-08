@@ -1,5 +1,5 @@
 import { SYMBOLS, type GameSymbol } from '@jhandi/game-rules/symbols'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useParams } from 'react-router'
 import SymbolIcon from '@/components/art/SymbolIcon'
 import VenueBackdrop from '@/components/art/VenueBackdrop'
@@ -41,6 +41,16 @@ export default function RoomPage() {
     feed,
   } = useRoomStore()
   const [chip, setChip] = useState(10)
+  // Why a tile tap did nothing (spectator / betting closed / host); clears itself.
+  const [hint, setHint] = useState<string | null>(null)
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const showHint = (key: string) => {
+    setHint(key)
+    if (hintTimer.current) clearTimeout(hintTimer.current)
+    hintTimer.current = setTimeout(() => {
+      setHint(null)
+    }, 3500)
+  }
   const secondsLeft = useSecondsLeft(snapshot?.phase === 'BETTING' ? snapshot.bettingEndsAt : 0)
   useRoomSounds({
     phase: snapshot?.phase,
@@ -148,29 +158,21 @@ export default function RoomPage() {
           <ResultBanner result={lastResult} isHost={isHost} />
         )}
 
-        <div className="mx-auto w-full max-w-2xl">
-          <Board
-            snapshot={snapshot}
-            myBets={roundBets}
-            canBet={canBet}
-            onBet={(symbol: GameSymbol) => {
-              actions.placeBet(symbol, betChip)
-            }}
-            onCancel={actions.cancelBet}
-          />
-        </div>
-
-        {errorKey && (
-          <p role="alert" className="text-sm text-tika">
-            {isMessageKey(errorKey) ? t(errorKey) : lastError?.message}
-          </p>
+        {/* What to do right now — above the board so it is visible on a phone without scrolling. */}
+        {!isHost && !isPlayer && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-marigold/50 bg-marigold/10 p-3">
+            <span className="text-sm text-cream/85">{t('spectatingHint')}</span>
+            <Button className="min-h-11" onClick={actions.joinAsPlayer}>
+              {t('joinAsPlayer')}
+            </Button>
+          </div>
         )}
-
         {isPlayer && (
           <div className="flex flex-col gap-2">
-            <p className="text-sm text-cream/60">
-              {t('tapToBet')}
-              {snapshot.phase === 'BETTING' && ` · ${t('untilHostShakes')}`}
+            <p className="text-sm text-cream/70">
+              {snapshot.phase === 'BETTING'
+                ? `${t('tapToBet')} · ${t('untilHostShakes')}`
+                : t('waitForHostToStart')}
             </p>
             <ChipPicker
               value={chip}
@@ -180,11 +182,33 @@ export default function RoomPage() {
             />
           </div>
         )}
-        {!isHost && !isPlayer && (
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-cream/70">{t('spectating')}</span>
-            <Button onClick={actions.joinAsPlayer}>{t('joinAsPlayer')}</Button>
-          </div>
+        {hint && isMessageKey(hint) && (
+          <p role="status" className="rounded-lg bg-marigold/15 px-3 py-2 text-sm text-marigold">
+            {t(hint)}
+          </p>
+        )}
+
+        <div className="mx-auto w-full max-w-2xl">
+          <Board
+            snapshot={snapshot}
+            myBets={roundBets}
+            canBet={canBet}
+            onBet={(symbol: GameSymbol) => {
+              actions.placeBet(symbol, betChip)
+            }}
+            onCancel={actions.cancelBet}
+            onBlocked={() => {
+              if (isHost) showHint('betHintHost')
+              else if (!isPlayer) showHint('betHintSpectator')
+              else showHint('betHintClosed')
+            }}
+          />
+        </div>
+
+        {errorKey && (
+          <p role="alert" className="text-sm text-tika">
+            {isMessageKey(errorKey) ? t(errorKey) : lastError?.message}
+          </p>
         )}
         {isHost && snapshot.isPrivate && <InvitePanel roomId={roomId} />}
         {isHost && <HostControls snapshot={snapshot} actions={actions} />}
