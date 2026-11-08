@@ -136,8 +136,12 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     let states: DieState[] = []
     let throwStartedAt: number | null = null
     let rolledSound = false
-    // Once every die is at rest nothing moves: stop the render loop (battery, no jank).
+    // Once every die is at rest nothing moves: drop to a few frames per second. (Stopping
+    // completely is not safe: Android compositors discard the buffer of a WebGL canvas that is
+    // never redrawn and show garbage in its place.)
     let idle = false
+    let lastIdleRender = 0
+    const IDLE_FRAME_MS = 250
     const geometry = new THREE.BoxGeometry(DIE_SIZE, DIE_SIZE, DIE_SIZE, 2, 2, 2)
 
     // Meshes exist from the start (plain yellow) so a slow texture load can never leave the
@@ -162,7 +166,6 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
         material.color.set(0xffffff)
         material.needsUpdate = true
       })
-      if (idle) renderer.render(scene, camera)
     })
 
     const resize = () => {
@@ -172,7 +175,6 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
       placeCamera(camera, w / Math.max(1, h))
       // Only matters before the throw; a throw in progress keeps its bounds.
       if (throwStartedAt === null) bounds = floorBounds(camera)
-      if (idle) renderer.render(scene, camera)
     }
     resize()
     window.addEventListener('resize', resize)
@@ -181,8 +183,14 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     let last = 0
     let frame = 0
     const animate = () => {
-      if (idle) return
       frame = requestAnimationFrame(animate)
+      if (idle) {
+        const ms = performance.now()
+        if (ms - lastIdleRender < IDLE_FRAME_MS) return
+        lastIdleRender = ms
+        renderer.render(scene, camera)
+        return
+      }
       const now = (performance.now() - startedAt) / 1000
       const dt = Math.min(0.033, now - last)
       last = now
@@ -231,11 +239,25 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     }
     animate()
 
+    // If the GPU drops the context mid-throw, hide the canvas rather than show garbage.
+    const onContextLost = (event: Event) => {
+      event.preventDefault()
+      renderer.domElement.style.visibility = 'hidden'
+    }
+    renderer.domElement.addEventListener('webglcontextlost', onContextLost)
+
     return () => {
       disposed = true
       cancelAnimationFrame(frame)
       window.removeEventListener('resize', resize)
+      renderer.domElement.removeEventListener('webglcontextlost', onContextLost)
+      // Leave nothing behind on screen: clear, release the context, then remove the canvas.
+      renderer.clear()
       geometry.dispose()
+      materials.forEach((m) => {
+        m.dispose()
+      })
+      renderer.forceContextLoss()
       renderer.dispose()
       host.removeChild(renderer.domElement)
     }
