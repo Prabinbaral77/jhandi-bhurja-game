@@ -10,7 +10,8 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(32),
   ACCESS_TOKEN_TTL_SEC: z.coerce.number().int().positive().default(900),
   // The web app's origin: the only site allowed to matchmake / open sockets.
-  WEB_ORIGIN: z.url(),
+  // An origin has no path: a trailing slash pasted into a dashboard must not break CORS.
+  WEB_ORIGIN: z.url().transform((value) => value.replace(/\/+$/, '')),
   // Number of reverse proxies in front of the server (real client IP for rate limits).
   TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
   // Per-IP matchmaking budget (seat reservations). Raised only for load tests from one machine.
