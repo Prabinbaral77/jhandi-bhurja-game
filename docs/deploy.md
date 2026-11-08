@@ -84,9 +84,14 @@ minutes and takes ~30–60 s to wake (the first visitor of the evening waits), r
 1. **Render**: sign up with GitHub/e-mail (no card) → New → **Blueprint** → connect the repo (push
    it to GitHub first) → set `DATABASE_URL`, `WEB_ORIGIN`, `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS` →
    Apply. Note the URL, e.g. `https://jhandi.onrender.com`.
-2. **Netlify**: Import from Git → env vars `VITE_API_URL=https://jhandi.onrender.com`,
-   `VITE_GAME_SERVER_URL=wss://jhandi.onrender.com`, `VITE_GOOGLE_CLIENT_ID`. Deploy. Add the
-   custom domain `game.prabinbaral.com.np` if wanted; then set Render's `WEB_ORIGIN` to it.
+2. **Netlify**: Import from Git (or drag-and-drop `apps/web/dist`) with
+   `VITE_API_PROXY_TARGET=https://jhandi.onrender.com`,
+   `VITE_API_URL=https://<site>.netlify.app/api`, `VITE_GAME_SERVER_URL=wss://jhandi.onrender.com`,
+   `VITE_GOOGLE_CLIENT_ID`. The build writes a `_redirects` rule that proxies `/api/*` to Render,
+   so the login cookie is **first-party** (a cross-site cookie is dropped by Safari and by
+   `SameSite=Lax`). On Render set `API_PUBLIC_PREFIX=/api` and `TRUST_PROXY=2` (Netlify + Render
+   hops). WebSockets go straight to Render (no cookie needed). Custom domain
+   `game.prabinbaral.com.np` if wanted; then set `WEB_ORIGIN` and `VITE_API_URL` to it.
 3. **Keep it awake** (optional): UptimeRobot (free, no card) HTTP monitor on
    `https://jhandi.onrender.com/health` every 5 minutes. One service × 24 h × 31 days = 744 h,
    inside the 750 h allowance.

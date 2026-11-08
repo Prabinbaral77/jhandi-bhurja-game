@@ -18,8 +18,9 @@ services:
         value: "true"
       - key: GAME_SERVER_PORT
         fromService: { type: web, name: jhandi, envVarKey: PORT }
+      # Proxy hops in front of the app: Render's edge (1) + Netlify's /api proxy (1).
       - key: TRUST_PROXY
-        value: "1"
+        value: "2"
       - key: DATABASE_URL
         sync: false # Supabase SESSION pooler string (port 5432)
       - key: DATABASE_POOL_MAX
@@ -30,8 +31,9 @@ services:
         sync: false # e.g. https://jhandi.netlify.app or https://game.prabinbaral.com.np
       - key: WEB_BASE_PATH
         value: ""
+      # The web app calls the API through Netlify at https://<site>/api/* (same-site cookie).
       - key: API_PUBLIC_PREFIX
-        value: ""
+        value: "/api"
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: ADMIN_EMAILS
