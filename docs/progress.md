@@ -196,6 +196,7 @@ Branch: `feat/m7-hardening`.
 - [x] Deployed: web on Netlify (`decodegames.netlify.app`), API + game server as one Render free service (`jhandi.onrender.com`, `SERVE_API=true`), Supabase; test data wiped (`db:reset`)
 - [x] Same-site API through Netlify `/api/*` proxy (generated `_redirects`), so the refresh cookie survives reloads on every browser (cookie `Path=/`); `TRUST_PROXY=2`
 - [x] `WEB_ORIGIN` trailing slash tolerated; phone OTP never offered/accepted in production; sign-in shows Google button at once and a "server waking" state
+- [x] Rooms no longer vanish: a room is closed (bank back to host) only after 6 h without any join/leave/round and no live game (`ABANDONED_AFTER_MS`, boot + 15-min sweep); disposing an empty Colyseus room leaves the DB room OPEN for the host — `roundService.ts`, `jhandiRoom.ts`
 - [x] Dice on phones: meshes exist before textures load (slow network no longer leaves dice invisible), 2×3 landing grid in portrait with room for the caption, pixel ratio ≤ 1.5 and 1024 shadow map on small/touch screens, render loop stops once dice are at rest, 3D chunk + textures preloaded while betting — `DiceScene.tsx`, `dicePhysics.ts`, `DiceArena.tsx`
 
 ## Fun reaction sounds (2026-10-31)

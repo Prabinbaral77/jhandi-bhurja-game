@@ -282,21 +282,13 @@ export class JhandiRoom extends Room<{
 
   override async onDispose(): Promise<void> {
     this.clearTimers()
-    // Nobody left to watch: refund an unfinished round instead of finishing it unseen, then
-    // close the room for good with the bank back to the host (an empty room is not a game).
+    // Nobody left to watch: refund an unfinished round instead of finishing it unseen. The DB
+    // room stays OPEN so the host can come back to it (a refresh or a sleeping free-tier server
+    // must not cost them their table); the idle sweep closes it after hours of silence.
     await this.enqueue(async () => {
       if (this.round) {
         await voidRound(this.round.id)
         this.round = null
-      }
-      if (!this.closed) {
-        this.closed = true
-        const returned = await closeRoomAndReturnBank({
-          roomId: this.dbRoomId,
-          hostAccountId: this.hostAccountId,
-          bankAccountId: this.bankAccountId,
-        })
-        logger.info({ roomId: this.dbRoomId, returned }, 'empty room closed')
       }
     })
     logger.info({ roomId: this.dbRoomId }, 'room disposed')

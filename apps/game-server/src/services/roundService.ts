@@ -264,16 +264,22 @@ export const closeRoomAndReturnBank = async (input: {
   return bank
 }
 
+// A room with no live game and no join, leave or round for this long is abandoned.
+export const ABANDONED_AFTER_MS = 6 * 60 * 60 * 1000
+
 /**
- * Rooms left OPEN/PAUSED in the DB with no live game behind them (node crash, everyone gone):
- * the bank goes back to the host and the room is closed. Runs at boot after unfinished rounds
- * were voided, so the bank is whole again. Admin dashboards then count only real games.
+ * Rooms left OPEN/PAUSED in the DB with no live game behind them AND no activity for
+ * ABANDONED_AFTER_MS: the bank goes back to the host and the room is closed. Anything younger is
+ * left alone so a host who refreshes, loses signal, or waits for the server to wake up finds
+ * their room exactly as they left it. Runs at boot and every few minutes.
  */
 export const closeAbandonedRooms = async (
   isRoomLive: (dbRoomId: string) => Promise<boolean>,
+  now = Date.now(),
 ): Promise<number> => {
   let closed = 0
   for (const room of await findOpenRooms()) {
+    if (now - new Date(room.lastActivityAt).getTime() < ABANDONED_AFTER_MS) continue
     if (await isRoomLive(room.id)) continue
     const returned = await closeRoomAndReturnBank({
       roomId: room.id,

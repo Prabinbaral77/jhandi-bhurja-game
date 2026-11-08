@@ -68,10 +68,20 @@ export const revokeMemberAccess = async (roomId: string, userId: string) => {
     .where(and(eq(roomMembers.roomId, roomId), eq(roomMembers.userId, userId)))
 }
 
-// Rooms the DB still thinks are running (OPEN or PAUSED).
+// Rooms the DB still thinks are running (OPEN or PAUSED), with their last sign of life:
+// creation, the latest round, or the latest member join/leave.
 export const findOpenRooms = async () =>
   db
-    .select({ id: rooms.id, hostId: rooms.hostId, name: rooms.name })
+    .select({
+      id: rooms.id,
+      hostId: rooms.hostId,
+      name: rooms.name,
+      lastActivityAt: sql<Date>`greatest(
+        ${rooms.createdAt},
+        coalesce((select max(started_at) from jhandi.rounds r where r.room_id = ${rooms.id}), ${rooms.createdAt}),
+        coalesce((select max(greatest(joined_at, coalesce(left_at, joined_at))) from jhandi.room_members m where m.room_id = ${rooms.id}), ${rooms.createdAt})
+      )`,
+    })
     .from(rooms)
     .where(ne(rooms.status, 'CLOSED'))
 

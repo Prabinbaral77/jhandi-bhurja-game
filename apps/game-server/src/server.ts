@@ -68,8 +68,16 @@ server.onShutdown(async () => {
 await server.listen(env.GAME_SERVER_PORT)
 if (server.transport.server) guardMatchmakeRequests(server.transport.server)
 // After listen: the matchmaker is booted, so other nodes' rooms are visible in the registry.
-// Rounds left open by a crashed node are refunded and their rooms closed (bank back to the
-// host); rounds and rooms that are live on another node are kept.
+// Rounds left open by a crashed node are refunded; rooms stay OPEN for their host unless they
+// have been idle for hours (ABANDONED_AFTER_MS); rooms live on another node are untouched.
 await voidUnfinishedRounds(isRoomLive)
 const closedAbandoned = await closeAbandonedRooms(isRoomLive)
+// Keep sweeping: a room nobody has touched for hours gives its bank back to the host.
+const SWEEP_MS = 15 * 60 * 1000
+const sweep = setInterval(() => {
+  closeAbandonedRooms(isRoomLive).catch((error: unknown) => {
+    logger.error({ err: error }, 'abandoned-room sweep failed')
+  })
+}, SWEEP_MS)
+sweep.unref()
 logger.info({ port: env.GAME_SERVER_PORT, shared, closedAbandoned }, 'game-server listening')
