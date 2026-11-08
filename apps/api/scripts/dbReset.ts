@@ -34,6 +34,22 @@ for (const t of toWipe) {
 }
 console.table(before)
 
+// platform_settings references users (updated_by), so TRUNCATE … CASCADE empties it too:
+// snapshot the values and put them back (with the migration defaults as a fallback).
+const DEFAULT_SETTINGS: Record<string, string> = {
+  SIGNUP_BONUS: '5000',
+  DAILY_BONUS: '10',
+  MIN_HOST_DEPOSIT: '5000',
+  MIN_HOST_BANK_TO_CONTINUE: '1000',
+  PLATFORM_FEE_BPS: '200',
+  PRIVATE_ROOM_MAX_MEMBERS: '20',
+  DAILY_LOSS_CAP: '3000',
+}
+const saved = await sql<
+  { key: string; value: string }[]
+>`select key, value from jhandi.platform_settings`
+const settings = { ...DEFAULT_SETTINGS, ...Object.fromEntries(saved.map((r) => [r.key, r.value])) }
+
 await sql.begin(async (tx) => {
   await tx.unsafe(
     `truncate table ${toWipe.map((t) => `"jhandi"."${t}"`).join(', ')} restart identity cascade`,
@@ -43,7 +59,11 @@ await sql.begin(async (tx) => {
     ('00000000-0000-7000-8000-000000000001', 'SYSTEM', null, 'BONUS', 0),
     ('00000000-0000-7000-8000-000000000002', 'SYSTEM', null, 'PLATFORM_FEE', 0),
     ('00000000-0000-7000-8000-000000000003', 'SYSTEM', null, 'ADJUSTMENT', 0)`)
+  for (const [key, value] of Object.entries(settings)) {
+    await tx`insert into jhandi.platform_settings (key, value) values (${key}, ${value})
+      on conflict (key) do update set value = excluded.value, updated_by = null`
+  }
 })
-console.log('wiped', toWipe.length, 'tables, system accounts re-seeded; platform_settings kept:')
+console.log('wiped', toWipe.length, 'tables; system accounts and platform_settings re-seeded:')
 console.table(await sql`select key, value from jhandi.platform_settings order by key`)
 await sql.end({ timeout: 5 })
