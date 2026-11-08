@@ -1,0 +1,62 @@
+# Render Blueprint: API + game server on the FREE plan (sleeps after 15 min idle, ~1 min wake;
+# fine for testing the deployed stack, not for a live Dashain evening — see docs/deploy.md).
+# Deploy: Render dashboard → New → Blueprint → this repo. Fill the sync: false values once.
+services:
+  - type: web
+    name: jhandi-api
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: cd apps/api && node --import tsx src/server.ts
+    healthCheckPath: /v1/trpc/health.check
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        fromService: { type: web, name: jhandi-api, envVarKey: PORT }
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_POOL_MAX
+        value: "5"
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: WEB_ORIGIN
+        sync: false # https://<your-netlify-site> or https://game.prabinbaral.com.np
+      - key: WEB_BASE_PATH
+        value: ""
+      - key: API_PUBLIC_PREFIX
+        value: ""
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
+      - key: REDIS_URL
+        value: ""
+  - type: web
+    name: jhandi-game
+    runtime: node
+    region: singapore
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile
+    startCommand: cd apps/game-server && node --import tsx src/server.ts
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GAME_SERVER_PORT
+        fromService: { type: web, name: jhandi-game, envVarKey: PORT }
+      - key: TRUST_PROXY
+        value: "1"
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_POOL_MAX
+        value: "5"
+      - key: AUTH_SECRET
+        fromService: { type: web, name: jhandi-api, envVarKey: AUTH_SECRET }
+      - key: WEB_ORIGIN
+        sync: false
+      - key: REDIS_URL
+        value: ""

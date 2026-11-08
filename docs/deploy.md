@@ -45,6 +45,33 @@ stay up. A free always-on VM next to the database is the only free option that p
 
 Files: `deploy/oracle/{setup.sh,deploy.sh,nginx-game.conf,jhandi-api.service,jhandi-game.service,.env.production.example}`.
 
+## 0b. Netlify for the web + Render for the servers (quickest, also free)
+
+The web app is static, so Netlify serves it well. **Netlify cannot run the API or the game
+server** (long-running Node + WebSocket), so those still need a host: the Oracle VM (§0, best) or
+Render's free plan (sleeps after 15 min idle, wakes in ~1 min, Singapore region; good enough to
+test the deployed stack, not for a busy evening). The repo carries `netlify.toml`, `public/_redirects`
+and `render.yaml` for this.
+
+1. **Servers first** (their URLs go into the web build):
+   - Render → New → Blueprint → this repo → fill `DATABASE_URL` (Supabase session pooler),
+     `WEB_ORIGIN` (the Netlify site URL, e.g. `https://jhandi.netlify.app`, or
+     `https://game.prabinbaral.com.np`), `GOOGLE_CLIENT_ID`, `ADMIN_EMAILS`. Run `pnpm db:migrate`
+     once from your machine. You get `https://jhandi-api.onrender.com` and
+     `https://jhandi-game.onrender.com`.
+2. **Netlify**: Add new site → Import from Git → this repo. Build settings are read from
+   `netlify.toml`. Environment variables: `VITE_API_URL=https://jhandi-api.onrender.com`,
+   `VITE_GAME_SERVER_URL=wss://jhandi-game.onrender.com`, `VITE_GOOGLE_CLIENT_ID=…`,
+   `VITE_BASE_PATH` empty. Deploy. Custom domain `game.prabinbaral.com.np` under Domain management
+   (Netlify issues the certificate).
+   - Without Git: build locally with those values in `.env` (`pnpm --filter @jhandi/web build`)
+     and drag `apps/web/dist` onto Netlify's Deploys page.
+   - To serve it at `prabinbaral.com.np/game` when the main site is also on Netlify: build with
+     `VITE_BASE_PATH=/game/`, and in the main site's `_redirects` add
+     `/game/*  https://<game-site>.netlify.app/game/:splat  200`.
+3. **Google Cloud**: add the final web origin to Authorized JavaScript origins.
+4. Open the site, sign in, host a room, play a round; check `/admin`.
+
 ## 1. Pieces and where they run
 
 | Piece            | What it is                                 | Runs where                                                       |

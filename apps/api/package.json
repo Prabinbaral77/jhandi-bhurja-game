@@ -18,6 +18,7 @@
     "reconcile": "tsx --env-file=../../.env src/scripts/reconcile.ts",
     "admin:grant": "tsx --env-file=../../.env scripts/grantAdmin.ts",
     "admin:revoke": "tsx --env-file=../../.env scripts/revokeAdmin.ts",
+    "db:reset": "tsx --env-file=../../.env scripts/dbReset.ts",
     "dev:topup": "tsx --env-file=../../.env scripts/devTopUp.ts"
   },
   "devDependencies": {
