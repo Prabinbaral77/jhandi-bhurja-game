@@ -52,4 +52,6 @@ export const refreshOutputSchema = z.object({
 
 export const authConfigOutputSchema = z.object({
   googleEnabled: z.boolean(),
+  // Phone OTP is a development-only fallback (console SMS); never offered in production.
+  phoneEnabled: z.boolean(),
 })

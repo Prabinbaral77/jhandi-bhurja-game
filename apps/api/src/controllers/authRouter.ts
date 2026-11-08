@@ -18,6 +18,7 @@ import {
   signInWithGoogle,
   verifyOtp,
   type SignInResult,
+  isPhoneEnabled,
 } from '#services/authService'
 import {
   consumeRefreshToken,
@@ -45,7 +46,7 @@ const startSession = async (ctx: Context, result: SignInResult): Promise<SignInO
 export const authRouter = router({
   config: publicProcedure
     .output(authConfigOutputSchema)
-    .query(() => ({ googleEnabled: isGoogleEnabled() })),
+    .query(() => ({ googleEnabled: isGoogleEnabled(), phoneEnabled: isPhoneEnabled() })),
 
   requestOtp: publicProcedure
     .input(requestOtpInputSchema)

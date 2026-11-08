@@ -195,6 +195,9 @@ const ne = {
   noCashValue:
     '१८+ मात्र · कोइन काल्पनिक हुन्, पैसा होइनन् — किन्न, बेच्न, साट्न वा झिक्न मिल्दैन।',
   lastUpdated: 'अन्तिम अद्यावधिक:',
+  connecting: 'सर्भरसँग जोड्दै… पहिलो पटक एक मिनेटसम्म लाग्न सक्छ।',
+  connectError: 'सर्भरसँग जोड्न सकिएन।',
+  retry: 'फेरि प्रयास',
   soundsTitle: 'आवाज पठाउनुहोस्',
   soundCooldown: 'एकछिन पर्खनुहोस्…',
   'sound.wow': 'वाउ!',
@@ -413,6 +416,9 @@ const en: Record<MessageKey, string> = {
   noCashValue:
     '18+ only · Coins are virtual, not money — they cannot be bought, sold, traded or withdrawn.',
   lastUpdated: 'Last updated:',
+  connecting: 'Connecting to the server… the first time can take up to a minute.',
+  connectError: 'Could not reach the server.',
+  retry: 'Retry',
   soundsTitle: 'Send a sound',
   soundCooldown: 'Wait a moment…',
   'sound.wow': 'Wow!',

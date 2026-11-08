@@ -81,8 +81,9 @@ export default function SignInPage() {
     event.preventDefault()
     if (sent) verifyOtp.mutate({ phone: sent.phone, code })
   }
-  // Phone OTP exists only as the development fallback while Google isn't configured.
-  const phoneVisible = !googleEnabled
+  // Phone OTP is the development fallback while Google isn't configured; the API says whether
+  // it exists at all (never in production). While the config is loading, show neither.
+  const phoneVisible = config.data?.phoneEnabled === true && !googleEnabled
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-6 pt-6">
@@ -119,6 +120,15 @@ export default function SignInPage() {
           </Link>
         </p>
 
+        {config.isPending && <p className="text-center text-xs text-cream/50">{t('connecting')}</p>}
+        {config.isError && (
+          <p className="text-center text-xs text-tika">
+            {t('connectError')}{' '}
+            <button type="button" className="underline" onClick={() => void config.refetch()}>
+              {t('retry')}
+            </button>
+          </p>
+        )}
         {googleEnabled && (
           <div className="flex flex-col items-center gap-2">
             {ageConfirmed ? (

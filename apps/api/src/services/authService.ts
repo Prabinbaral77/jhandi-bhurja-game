@@ -51,6 +51,7 @@ const rateLimited = (retryAfterMs: number) =>
 const otpHash = (phone: string, code: string) => hashSecret(`otp:${phone}:${code}`)
 
 export const requestOtp = async (phone: string, ip: string) => {
+  assertPhoneEnabled()
   const ipWait = otpIpLimiter.hit(ip)
   if (ipWait > 0) throw rateLimited(ipWait)
 
@@ -168,6 +169,7 @@ export const signInWithIdentity = async (
 }
 
 export const verifyOtp = async (phone: string, code: string, ip: string): Promise<SignInResult> => {
+  assertPhoneEnabled()
   const ipWait = verifyIpLimiter.hit(ip)
   if (ipWait > 0) throw rateLimited(ipWait)
 
@@ -196,6 +198,14 @@ const googleKeys = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2
 })
 
 export const isGoogleEnabled = (): boolean => env.GOOGLE_CLIENT_ID !== undefined
+
+// Console-OTP sign-in is a development/test convenience (e2e scripts): it would let anyone
+// claim any number, so it is never available in production.
+export const isPhoneEnabled = (): boolean => env.NODE_ENV !== 'production'
+
+const assertPhoneEnabled = (): void => {
+  if (!isPhoneEnabled()) throw new AppError('FORBIDDEN', 'Phone sign-in is not available')
+}
 
 const verifyGoogleIdToken = async (idToken: string, clientId: string): Promise<JWTPayload> => {
   try {
