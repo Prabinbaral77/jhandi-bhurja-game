@@ -45,8 +45,9 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   PRIVATE_ROOM_MAX_MEMBERS: '20',
   DAILY_LOSS_CAP: '3000',
 }
+// `value` is numeric in Postgres and comes back as a number.
 const saved = await sql<
-  { key: string; value: string }[]
+  { key: string; value: string | number }[]
 >`select key, value from jhandi.platform_settings`
 const settings = {
   ...DEFAULT_SETTINGS,
