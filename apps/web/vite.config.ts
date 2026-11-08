@@ -1,5 +1,6 @@
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 
@@ -16,6 +17,17 @@ const cspConnectSrc = (mode: string): Plugin => {
   return {
     name: 'jhandi-csp-connect-src',
     transformIndexHtml: (html) => html.replaceAll('%CSP_CONNECT_SRC%', sources),
+    // Netlify/Cloudflare `_headers` must carry the same connect-src, so it is generated too.
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: '_headers',
+        source: readFileSync(new URL('./headers.template', import.meta.url), 'utf8').replaceAll(
+          '%CSP_CONNECT_SRC%',
+          sources,
+        ),
+      })
+    },
   }
 }
 

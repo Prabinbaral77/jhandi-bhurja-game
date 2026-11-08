@@ -228,7 +228,7 @@ Checklist and deploy steps: `docs/security.md`.
 - [x] Refresh cookie: `__Secure-jb_rt`, `Secure` outside development, httpOnly, SameSite=Lax, path `/v1/trpc`
 - [x] Production guard rails at start: https `WEB_ORIGIN`, non-placeholder `AUTH_SECRET`, `GOOGLE_CLIENT_ID` required (console SMS refused)
 - [x] Game server: matchmaking CORS + `/matchmake/*` origin check + 60/min per-IP budget via a raw HTTP listener (Colyseus serves matchmaking ahead of Express), WebSocket upgrade refused for foreign origins, 16 KB frame cap, per-connection token bucket 20/s burst 40 (kick after 50 strikes) before Zod validation — `apps/game-server/src/lib/security.ts`, `utils/onValidatedMessage.ts`, `server.ts`
-- [x] Web: CSP meta in `index.html` (Vite env substitution for API/WS hosts), `public/_headers` for static hosts
+- [x] Web: CSP meta in `index.html` (Vite env substitution for API/WS hosts), `headers.template` → `dist/_headers` for static hosts
 - [x] Verified with curl: foreign-origin POST 403 on both servers, same-origin 200, 70 KB body 413, auth burst 429, WS upgrade with foreign Origin 403; e2e smoke passes
 - [ ] `pnpm audit --prod`: `uuid` (moderate) and `elliptic` (low) remain inside `@colyseus/auth → grant`, unused at runtime
 
