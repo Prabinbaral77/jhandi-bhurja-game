@@ -133,9 +133,15 @@ export default function SignInPage() {
         )}
         {googleEnabled && (
           <div className="flex flex-col items-center gap-2">
-            {ageConfirmed ? (
+            {/* Always visible so "Sign in with Google" is the first thing on the page; it only
+                becomes clickable once the 18+ box is ticked. */}
+            <div
+              className={ageConfirmed ? '' : 'pointer-events-none opacity-40'}
+              aria-disabled={!ageConfirmed}
+            >
               <GoogleSignInButton onCredential={onGoogleCredential} />
-            ) : (
+            </div>
+            {!ageConfirmed && (
               <p className="text-center text-xs text-cream/50">{t('confirmAgeFirst')}</p>
             )}
             <ErrorText error={google.error} />
