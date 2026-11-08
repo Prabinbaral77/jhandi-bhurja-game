@@ -33,16 +33,10 @@ const envSchema = z
     AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(30),
     // Number of reverse proxies in front of the API (so req.ip is the real client). 0 = none.
     TRUST_PROXY: z.coerce.number().int().nonnegative().default(0),
-    // Path prefix the reverse proxy strips before reaching this API (e.g. `/game/api`), so the
-    // refresh cookie's Path matches what the browser requests. Empty when served at the root.
     // Path the web app lives under on WEB_ORIGIN (e.g. `/game`), for links we hand out.
     WEB_BASE_PATH: z
       .string()
       .regex(/^(\/[A-Za-z0-9._-]+)*$/, 'must look like /game or be empty')
-      .default(''),
-    API_PUBLIC_PREFIX: z
-      .string()
-      .regex(/^(\/[A-Za-z0-9._-]+)*$/, 'must look like /game/api or be empty')
       .default(''),
     GOOGLE_CLIENT_ID: optionalString,
     // Comma-separated Google e-mails that get admin access on sign-in; everyone else loses it.

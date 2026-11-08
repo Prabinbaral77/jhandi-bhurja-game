@@ -194,7 +194,7 @@ Branch: `feat/m7-hardening`.
 ## Launch fixes (2026-11-08)
 
 - [x] Deployed: web on Netlify (`decodegames.netlify.app`), API + game server as one Render free service (`jhandi.onrender.com`, `SERVE_API=true`), Supabase; test data wiped (`db:reset`)
-- [x] Same-site API through Netlify `/api/*` proxy (generated `_redirects`), so the refresh cookie survives reloads on every browser; `API_PUBLIC_PREFIX=/api`, `TRUST_PROXY=2`
+- [x] Same-site API through Netlify `/api/*` proxy (generated `_redirects`), so the refresh cookie survives reloads on every browser (cookie `Path=/`); `TRUST_PROXY=2`
 - [x] `WEB_ORIGIN` trailing slash tolerated; phone OTP never offered/accepted in production; sign-in shows Google button at once and a "server waking" state
 - [x] Dice on phones: meshes exist before textures load (slow network no longer leaves dice invisible), 2×3 landing grid in portrait with room for the caption, pixel ratio ≤ 1.5 and 1024 shadow map on small/touch screens, render loop stops once dice are at rest, 3D chunk + textures preloaded while betting — `DiceScene.tsx`, `dicePhysics.ts`, `DiceArena.tsx`
 
