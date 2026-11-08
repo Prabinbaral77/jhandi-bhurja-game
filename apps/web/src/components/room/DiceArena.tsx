@@ -15,6 +15,13 @@ import { useLanguageStore, useT } from '@/lib/i18n'
 
 const DiceScene = lazy(() => import('@/components/room/DiceScene'))
 
+// Warm up the 3D chunk and the six carved-face textures while players are still betting, so
+// the throw starts instantly on a phone.
+const preloadDice = () => {
+  void import('@/components/room/DiceScene')
+  void import('@/lib/diceTextures').then((m) => m.loadDiceTextures())
+}
+
 const SHAKE_MS = 1_400
 const ROLL_MS = 2_600
 // How long the resting dice stay on screen before the 3-2-1 countdown: time to read the throw.
@@ -36,6 +43,7 @@ export default function DiceArena({
   phase: RoomPhase
   roundId: string
 }) {
+  useEffect(preloadDice, [])
   const t = useT()
   const language = useLanguageStore((s) => s.language)
   const [stage, setStage] = useState<Stage>('idle')

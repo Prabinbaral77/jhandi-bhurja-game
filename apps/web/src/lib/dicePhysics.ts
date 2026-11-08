@@ -58,6 +58,8 @@ export interface Bounds {
   halfW: number
   zMin: number
   zMax: number
+  // Tall phone screen: lay the six dice out 2 across × 3 deep instead of 3 × 2.
+  portrait?: boolean
 }
 
 const mulberry = (seed: string) => {
@@ -74,15 +76,20 @@ const mulberry = (seed: string) => {
 export const createThrow = (seed: string, dice: GameSymbol[], bounds: Bounds): DieState[] => {
   const rand = mulberry(seed)
   const slots = [0, 1, 2, 3, 4, 5].sort(() => rand() - 0.5)
+  const cols = bounds.portrait ? 2 : 3
+  const rows = 6 / cols
   return dice.map((symbol, i) => {
     const slot = slots[i] ?? i
-    const col = slot % 3
-    const row = Math.floor(slot / 3)
+    const col = slot % cols
+    const row = Math.floor(slot / cols)
     const zSpan = bounds.zMax - bounds.zMin
+    // Grid cell centres with a little jitter, inside the visible floor.
+    const cx = ((col + 0.5) / cols) * 2 - 1
+    const cz = (row + 0.5) / rows
     const target = new Vector3(
-      (-0.62 + col * 0.62 + (rand() - 0.5) * 0.3) * bounds.halfW,
+      (cx * 0.62 + (rand() - 0.5) * 0.25) * bounds.halfW,
       HALF,
-      bounds.zMin + zSpan * (0.28 + row * 0.44 + (rand() - 0.5) * 0.18),
+      bounds.zMin + zSpan * (cz + (rand() - 0.5) * (0.5 / rows)),
     )
     // Launch from the cup at the centre, fast and high, roughly toward the target.
     const dir = target.clone().setY(0).normalize()

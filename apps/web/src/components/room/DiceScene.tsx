@@ -53,8 +53,11 @@ const floorBounds = (camera: THREE.PerspectiveCamera): Bounds => {
   const zs = corners.map((c) => c.z)
   const zMin = Math.min(...zs)
   const zMax = Math.max(...zs)
-  // keep clear of the very top (far) edge and the result caption at the bottom
-  return { halfW, zMin: zMin + (zMax - zMin) * 0.12, zMax: zMax - (zMax - zMin) * 0.14 }
+  const portrait = camera.aspect < 0.9
+  // Keep clear of the far (top) edge, and of the result caption + button at the bottom, which
+  // cover a bigger share of a phone screen.
+  const bottom = portrait ? 0.3 : 0.14
+  return { halfW, zMin: zMin + (zMax - zMin) * 0.1, zMax: zMax - (zMax - zMin) * bottom, portrait }
 }
 
 export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
@@ -69,8 +72,16 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     if (!host) return
     let disposed = false
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio))
+    // Phones: fewer pixels and a smaller shadow map keep the throw at 60 fps; a high-DPI screen
+    // hides the missing anti-aliasing anyway.
+    const dpr = window.devicePixelRatio
+    const lowPower = host.clientWidth < 700 || window.matchMedia('(pointer: coarse)').matches
+    const renderer = new THREE.WebGLRenderer({
+      antialias: dpr < 2,
+      alpha: true,
+      powerPreference: 'high-performance',
+    })
+    renderer.setPixelRatio(Math.min(lowPower ? 1.5 : 2, dpr))
     renderer.setSize(host.clientWidth, host.clientHeight)
     renderer.shadowMap.enabled = true
     renderer.shadowMap.type = THREE.PCFShadowMap
@@ -85,7 +96,7 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     const sun = new THREE.DirectionalLight(0xffe9c0, 2.2)
     sun.position.set(-6, 14, 6)
     sun.castShadow = true
-    sun.shadow.mapSize.set(2048, 2048)
+    sun.shadow.mapSize.set(lowPower ? 1024 : 2048, lowPower ? 1024 : 2048)
     sun.shadow.camera.left = sun.shadow.camera.bottom = -18
     sun.shadow.camera.right = sun.shadow.camera.top = 18
     sun.shadow.camera.far = 40
@@ -125,22 +136,33 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     let states: DieState[] = []
     let throwStartedAt: number | null = null
     let rolledSound = false
+    // Once every die is at rest nothing moves: stop the render loop (battery, no jank).
+    let idle = false
     const geometry = new THREE.BoxGeometry(DIE_SIZE, DIE_SIZE, DIE_SIZE, 2, 2, 2)
 
+    // Meshes exist from the start (plain yellow) so a slow texture load can never leave the
+    // dice invisible; the carved faces are swapped in as soon as they are ready.
+    const materials = SYMBOLS.map(
+      () => new THREE.MeshStandardMaterial({ color: 0xe9c24a, roughness: 0.45, metalness: 0.05 }),
+    )
+    dieMeshes = dice.map(() => {
+      const mesh = new THREE.Mesh(geometry, materials)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      mesh.visible = false
+      scene.add(mesh)
+      return mesh
+    })
     void loadDiceTextures().then((textures) => {
       if (disposed) return
-      const materials = SYMBOLS.map(
-        (s) =>
-          new THREE.MeshStandardMaterial({ map: textures[s], roughness: 0.45, metalness: 0.05 }),
-      )
-      dieMeshes = dice.map(() => {
-        const mesh = new THREE.Mesh(geometry, materials)
-        mesh.castShadow = true
-        mesh.receiveShadow = true
-        mesh.visible = false
-        scene.add(mesh)
-        return mesh
+      SYMBOLS.forEach((s, i) => {
+        const material = materials[i]
+        if (!material) return
+        material.map = textures[s]
+        material.color.set(0xffffff)
+        material.needsUpdate = true
       })
+      if (idle) renderer.render(scene, camera)
     })
 
     const resize = () => {
@@ -150,6 +172,7 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
       placeCamera(camera, w / Math.max(1, h))
       // Only matters before the throw; a throw in progress keeps its bounds.
       if (throwStartedAt === null) bounds = floorBounds(camera)
+      if (idle) renderer.render(scene, camera)
     }
     resize()
     window.addEventListener('resize', resize)
@@ -158,6 +181,7 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
     let last = 0
     let frame = 0
     const animate = () => {
+      if (idle) return
       frame = requestAnimationFrame(animate)
       const now = (performance.now() - startedAt) / 1000
       const dt = Math.min(0.033, now - last)
@@ -200,6 +224,8 @@ export default function DiceScene({ stage, dice, roundId }: DiceSceneProps) {
           rolledSound = true
           sfx('clatter')
         }
+        // Last die (max delay 0.25 s) settled a moment ago: draw the final frame and idle.
+        if (t > THROW_TOTAL_S + 0.5) idle = true
       }
       renderer.render(scene, camera)
     }
