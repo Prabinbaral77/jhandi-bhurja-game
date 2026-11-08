@@ -89,8 +89,7 @@ minutes and takes ~30–60 s to wake (the first visitor of the evening waits), r
    `VITE_API_URL=https://<site>.netlify.app/api`, `VITE_GAME_SERVER_URL=wss://jhandi.onrender.com`,
    `VITE_GOOGLE_CLIENT_ID`. The build writes a `_redirects` rule that proxies `/api/*` to Render,
    so the login cookie is **first-party** (a cross-site cookie is dropped by Safari and by
-   `SameSite=Lax`). On Render set `API_PUBLIC_PREFIX=/api` and `TRUST_PROXY=2` (Netlify + Render
-   hops). WebSockets go straight to Render (no cookie needed). Custom domain
+   `SameSite=Lax`). On Render set `TRUST_PROXY=2` (Netlify + Render hops). WebSockets go straight to Render (no cookie needed). Custom domain
    `game.prabinbaral.com.np` if wanted; then set `WEB_ORIGIN` and `VITE_API_URL` to it.
 3. **Keep it awake** (optional): UptimeRobot (free, no card) HTTP monitor on
    `https://jhandi.onrender.com/health` every 5 minutes. One service × 24 h × 31 days = 744 h,
@@ -139,7 +138,6 @@ VITE_GOOGLE_CLIENT_ID=…
 NODE_ENV=production
 WEB_ORIGIN=https://prabinbaral.com.np
 WEB_BASE_PATH=/game
-API_PUBLIC_PREFIX=/game/api
 TRUST_PROXY=1
 # game server
 WEB_ORIGIN=https://prabinbaral.com.np
@@ -157,7 +155,7 @@ you rent a separate VPS for Node)**
 
 Env: `VITE_BASE_PATH=/game/`, `VITE_API_URL=https://api.prabinbaral.com.np`,
 `VITE_GAME_SERVER_URL=wss://game.prabinbaral.com.np`, `WEB_ORIGIN=https://prabinbaral.com.np`,
-`WEB_BASE_PATH=/game`, `API_PUBLIC_PREFIX=` (empty). Cookies still work: `SameSite=Lax` treats
+`WEB_BASE_PATH=/game`. Cookies still work: `SameSite=Lax` treats
 sub-domains of one registrable domain as same-site.
 
 ## 3. Build
