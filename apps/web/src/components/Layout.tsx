@@ -85,6 +85,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       )}
       <main className="flex-1 py-6">{children}</main>
       <footer className="flex flex-col gap-1 border-t border-cream/10 py-3 text-xs text-cream/50">
+        <p className="text-cream/70">{t('credit')}</p>
         <p>{t('noCashValue')}</p>
         <p className="flex flex-wrap gap-x-3">
           <Link to="/legal/terms" className="hover:underline">
