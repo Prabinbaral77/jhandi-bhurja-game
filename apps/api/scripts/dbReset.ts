@@ -48,7 +48,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
 const saved = await sql<
   { key: string; value: string }[]
 >`select key, value from jhandi.platform_settings`
-const settings = { ...DEFAULT_SETTINGS, ...Object.fromEntries(saved.map((r) => [r.key, r.value])) }
+const settings = { ...DEFAULT_SETTINGS, ...Object.fromEntries(saved.map((r) => [r.key, String(r.value)])) }
 
 await sql.begin(async (tx) => {
   await tx.unsafe(
