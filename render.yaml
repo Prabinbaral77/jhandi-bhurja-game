@@ -8,6 +8,8 @@ services:
     runtime: node
     region: singapore
     plan: free
+    branch: main
+    autoDeploy: true
     buildCommand: corepack enable && pnpm install --frozen-lockfile
     startCommand: cd apps/game-server && node --import tsx src/server.ts
     healthCheckPath: /health
