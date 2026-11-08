@@ -120,7 +120,9 @@ export default function SignInPage() {
           </Link>
         </p>
 
-        {config.isPending && <p className="text-center text-xs text-cream/50">{t('connecting')}</p>}
+        {config.isPending && (
+          <p className="text-center text-xs text-cream/50">{t('serverWaking')}</p>
+        )}
         {config.isError && (
           <p className="text-center text-xs text-tika">
             {t('connectError')}{' '}
