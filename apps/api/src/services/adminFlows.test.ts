@@ -135,7 +135,7 @@ describe('admin', () => {
     const after = await adminUpdateSetting(admin, { key: 'DAILY_BONUS', value: 25 })
     expect(after.DAILY_BONUS).toBe(25)
     expect((await getSettings()).DAILY_BONUS).toBe(25)
-    expect((await adminGetSettings()).DAILY_LOSS_CAP).toBe(3_000)
+    expect((await adminGetSettings()).DAILY_LOSS_CAP).toBe(0)
     await expect(adminUpdateSetting(admin, { key: 'NOPE', value: 1 })).rejects.toMatchObject({
       code: 'VALIDATION_FAILED',
     })

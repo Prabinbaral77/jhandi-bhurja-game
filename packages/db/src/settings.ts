@@ -12,8 +12,9 @@ export const settingsSchema = z.object({
   MIN_HOST_BANK_TO_CONTINUE: coins,
   PLATFORM_FEE_BPS: z.number().int().min(0).max(10_000),
   PRIVATE_ROOM_MAX_MEMBERS: z.number().int().positive(),
-  // Responsible play: a player may not lose more than this per Kathmandu day (0 = off).
-  DAILY_LOSS_CAP: coins.default(3_000),
+  // Optional cap on what a player may lose per Kathmandu day. 0 = off, which is the default:
+  // no daily limit (migration 0012). An admin can turn it back on in settings.
+  DAILY_LOSS_CAP: coins.default(0),
 })
 
 export type PlatformSettings = z.infer<typeof settingsSchema>

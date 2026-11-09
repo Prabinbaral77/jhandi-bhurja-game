@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   MIN_HOST_BANK_TO_CONTINUE: '1000',
   PLATFORM_FEE_BPS: '200',
   PRIVATE_ROOM_MAX_MEMBERS: '20',
-  DAILY_LOSS_CAP: '3000',
+  DAILY_LOSS_CAP: '0',
 }
 // `value` is numeric in Postgres and comes back as a number.
 const saved = await sql<

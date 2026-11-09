@@ -482,7 +482,7 @@ Goal: it should feel like playing Jhandi Burja on a _khal_ (cloth board) in a Ne
 - Server-authoritative logic; clients never decide outcomes or balances.
 - JWT validation on WebSocket join; room membership checked on every message.
 - Anti-abuse: one account per phone, device fingerprint signals for bonus farming, collusion detection (host + players funneling coins between accounts), report/ban tools.
-- Age gate (18+ confirmed at sign-up, stored as `users.age_confirmed_at`) and responsible-play limits: `DAILY_LOSS_CAP` (default 3,000 coins per Kathmandu day, enforced by the game server before every bet) and an hourly session reminder in the web app.
+- Age gate (18+ confirmed at sign-up, stored as `users.age_confirmed_at`) and responsible-play limits: `DAILY_LOSS_CAP` (coins per Kathmandu day, enforced by the game server before every bet; `0` = off, the default since migration 0012) and an hourly session reminder in the web app.
 - All admin actions recorded in `audit_log`.
 
 ---

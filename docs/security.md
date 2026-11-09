@@ -17,7 +17,7 @@
 | Dice, payouts and balances are computed only on the server; clients send intents                             | ✅                  | `apps/game-server`, `packages/game-rules`         |
 | Commit–reveal dice: hash published before betting, seed after; anyone can verify                             | ✅                  | `game-rules/rng.ts`, "Check fairness" in the room |
 | Double-entry ledger, `balance >= 0` constraint, idempotency keys on every coin move, locked rows in id order | ✅                  | `packages/ledger`                                 |
-| Bet validation order (phase, role, min/max, wallet, bank exposure, daily loss cap)                           | ✅                  | `game-rules/betValidation.ts`, `jhandiRoom.ts`    |
+| Bet validation order (phase, role, min/max, wallet, bank exposure, optional daily loss cap, off by default)  | ✅                  | `game-rules/betValidation.ts`, `jhandiRoom.ts`    |
 | One writer per room (serial job queue); settlement is one DB transaction                                     | ✅                  | `jhandiRoom.ts`, `roundService.ts`                |
 | Host cannot bet in their own room; private rooms need an accepted invite; member removal refunds and revokes | ✅                  | `jhandiRoom.ts`                                   |
 | Nightly reconciliation (`pnpm --filter @jhandi/api reconcile`, exit 1 on mismatch)                           | ✅ / 🔧 schedule it | `packages/ledger/reconcile.ts`                    |

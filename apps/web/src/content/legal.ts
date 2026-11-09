@@ -222,7 +222,7 @@ const en: Record<LegalDoc, LegalContent> = {
       {
         heading: '4. Game rules',
         paragraphs: [
-          'Rules, payouts, the host deposit, bet limits, the daily loss cap and the platform fee are shown in the Game and in "Game rules". A platform fee (currently 2%) is taken from a host\'s net win per round, in virtual coins only.',
+          'Rules, payouts, the host deposit, bet limits and the platform fee are shown in the Game and in "Game rules". A platform fee (currently 2%) is taken from a host\'s net win per round, in virtual coins only.',
           'The server rolls the dice. Before each round a hash of the seed is published and the seed is revealed afterwards, so anyone can verify that the result was fixed in advance (commit–reveal).',
         ],
       },
@@ -274,7 +274,7 @@ const en: Record<LegalDoc, LegalContent> = {
       {
         heading: '2. Why we use it',
         paragraphs: [
-          'To run your account and sign you in; keep coin balances correct; prevent fraud, collusion and multiple accounts; enforce 18+ and responsible-play limits (daily loss cap, time reminders); improve the Service and fix errors; meet legal obligations.',
+          'To run your account and sign you in; keep coin balances correct; prevent fraud, collusion and multiple accounts; enforce 18+ and responsible-play measures (time reminders); improve the Service and fix errors; meet legal obligations.',
         ],
       },
       {
@@ -331,7 +331,7 @@ const en: Record<LegalDoc, LegalContent> = {
         heading: 'Built into the game',
         paragraphs: [
           '18+ confirmation at sign-in.',
-          'Daily loss cap: you cannot lose more than the set number of coins per Kathmandu day; once reached, betting stops for the day.',
+          'Bet limits per table: each host sets the smallest and largest bet for their table.',
           'Time reminder: a notice every hour you keep playing.',
           'Transparent dice: every round is committed by hash beforehand; "Check fairness" lets you verify it yourself.',
         ],
