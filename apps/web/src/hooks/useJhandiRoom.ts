@@ -20,6 +20,7 @@ import type { Room } from '@colyseus/sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef } from 'react'
 import type { z } from 'zod'
+import { env } from '@/lib/env'
 import { gameClient } from '@/lib/gameClient'
 import { useRoomStore } from '@/lib/roomStore'
 import { reactionSfx } from '@/lib/sound'
@@ -174,8 +175,18 @@ export const useJhandiRoom = (dbRoomId: string) => {
       })
     })
 
+    // Free hosts spin the server down after ~15 min without HTTP requests, and WebSocket frames
+    // do not count: a quiet plain request every few minutes keeps the table alive mid-game.
+    const keepAlive = setInterval(
+      () => {
+        void fetch(`${env.VITE_API_URL}/health`).catch(() => undefined)
+      },
+      4 * 60 * 1000,
+    )
+
     return () => {
       cancelled = true
+      clearInterval(keepAlive)
       roomRef.current = null
       void joined?.leave()
     }

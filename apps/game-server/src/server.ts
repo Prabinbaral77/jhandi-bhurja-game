@@ -30,6 +30,11 @@ const server = defineServer({
   transport: new WebSocketTransport({
     beforeUpgrade: refuseForeignOrigins,
     maxPayload: MAX_WS_PAYLOAD_BYTES,
+    // Colyseus drops a client that misses 2 pings 3 s apart (~6 s). A phone on mobile data
+    // stalls longer than that all the time, which showed up as constant "reconnecting". Allow
+    // about 40 s of silence before giving up on a socket.
+    pingInterval: 8_000,
+    pingMaxRetries: 5,
   }),
   presence: shared ? new RedisPresence(env.REDIS_URL) : new LocalPresence(),
   driver: shared ? new RedisDriver(env.REDIS_URL) : new LocalDriver(),
@@ -54,6 +59,8 @@ const server = defineServer({
         service: 'game-server',
         version: process.env.npm_package_version ?? '0.0.0',
         dependencies: { redis: shared ? 'up' : 'disabled' },
+        uptimeSec: Math.round(process.uptime()),
+        memoryMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
       }
       res.json(health)
     })
