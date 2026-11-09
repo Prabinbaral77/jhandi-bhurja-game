@@ -13,6 +13,16 @@
   --font-sans: 'Mukta', ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Nothing may widen the page on a phone (scaled winning tiles, long words, wide tables scroll
+   inside their own container instead). `clip` keeps sticky elements working; `hidden` is the
+   fallback for older browsers. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
 html {
   font-family: var(--font-sans);
   /* Coin amounts and timers line up (tabular numerals). */

@@ -26,7 +26,7 @@ export default function StatusPage() {
     <main className="mx-auto flex min-h-dvh max-w-md flex-col gap-6 px-4 py-10">
       <header className="text-center">
         <h1 className="text-4xl font-bold text-marigold">झण्डी बुर्जा</h1>
-        <p className="mt-1 text-cream/70">Dashain multiplayer — dev setup (M0)</p>
+        <p className="mt-1 text-cream/70">Nepal's game — system status</p>
       </header>
       <StatusCard title="API" tone={apiTone} lines={apiLines} />
       <StatusCard title="Game server" tone={gameTone} lines={gameLines} />

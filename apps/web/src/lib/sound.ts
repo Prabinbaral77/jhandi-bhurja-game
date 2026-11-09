@@ -121,13 +121,33 @@ const play: Record<Sfx, (ac: AudioContext) => void> = {
     noise(ac, { duration: 0.06, gain: 0.3, freq: 700 })
     tone(ac, { freq: 220, duration: 0.12, type: 'triangle', gain: 0.15 })
   },
+  // "Yaa-hoo!" — a rising shout, a falling whoop, then a little fanfare.
   win: (ac) => {
+    voice(ac, {
+      duration: 0.28,
+      pitch: 300,
+      pitchTo: 430,
+      formant: 800,
+      formantTo: 1_200,
+      gain: 0.3,
+    })
+    voice(ac, {
+      at: 0.3,
+      duration: 0.6,
+      pitch: 560,
+      pitchTo: 380,
+      formant: 520,
+      formantTo: 360,
+      gain: 0.32,
+      vibrato: 10,
+    })
     ;[523, 659, 784, 1_046].forEach((f, i) => {
-      tone(ac, { freq: f, at: i * 0.09, duration: 0.25, type: 'triangle', gain: 0.18 })
+      tone(ac, { freq: f, at: 0.95 + i * 0.09, duration: 0.25, type: 'triangle', gain: 0.14 })
     })
   },
+  // Lost the round: the same wailing cry players can send as a reaction.
   lose: (ac) => {
-    tone(ac, { freq: 180, duration: 0.3, type: 'sawtooth', gain: 0.08, slideTo: 90 })
+    reactions.cry(ac)
   },
   tick: (ac) => {
     tone(ac, { freq: 1_200, duration: 0.04, gain: 0.05 })

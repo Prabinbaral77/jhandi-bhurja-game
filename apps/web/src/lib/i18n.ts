@@ -2,7 +2,7 @@ import { create } from 'zustand'
 
 const ne = {
   appName: 'झण्डी बुर्जा',
-  tagline: 'दशैंको रमाइलो, अनलाइन',
+  tagline: 'नेपालको खेल',
   phoneLabel: 'मोबाइल नम्बर',
   phonePlaceholder: '98XXXXXXXX',
   sendCode: 'कोड पठाउनुहोस्',
@@ -15,7 +15,7 @@ const ne = {
   resend: 'कोड फेरि पठाउनुहोस्',
   orContinueWith: 'वा',
   welcomeTitle: 'स्वागत छ, {name}!',
-  welcomeBonus: 'तपाईंलाई दशैंको उपहार',
+  welcomeBonus: 'तपाईंलाई स्वागत उपहार',
   coins: 'कोइन',
   welcomePlay: 'खेल्नुहोस्',
   welcomePlayHint: 'कुनै कोठामा गएर झण्डा वा बुर्जामा कोइन राख्नुहोस्।',
@@ -230,7 +230,7 @@ export type MessageKey = keyof typeof ne
 
 const en: Record<MessageKey, string> = {
   appName: 'Jhandi Burja',
-  tagline: 'Dashain fun, online',
+  tagline: "Nepal's game",
   phoneLabel: 'Mobile number',
   phonePlaceholder: '98XXXXXXXX',
   sendCode: 'Send code',
@@ -243,7 +243,7 @@ const en: Record<MessageKey, string> = {
   resend: 'Resend code',
   orContinueWith: 'or',
   welcomeTitle: 'Welcome, {name}!',
-  welcomeBonus: 'Your Dashain gift',
+  welcomeBonus: 'Your welcome gift',
   coins: 'coins',
   welcomePlay: 'Play',
   welcomePlayHint: 'Join a room and put coins on the flag or the crown.',

@@ -26,7 +26,7 @@ export default function Layout({ children }: { children: ReactNode }) {
   })
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-3xl flex-col px-4">
+    <div className="mx-auto flex min-h-dvh w-full max-w-3xl flex-col overflow-x-clip px-4">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-cream/10 py-3">
         <Link to="/" className="text-xl font-bold text-marigold">
           {t('appName')}

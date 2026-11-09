@@ -7,9 +7,8 @@ import type { Language } from '@/lib/i18n'
  */
 
 export const OPERATOR = {
-  // TODO(launch): legal entity name and contact as registered.
-  name: 'Jhandi Burja Team',
-  email: 'support@example.com',
+  name: 'Decode with Prabin',
+  email: 'prabin.baral00@gmail.com',
   country: 'Nepal',
 }
 
@@ -162,7 +161,7 @@ const ne: Record<LegalDoc, LegalContent> = {
   'responsible-play': {
     title: 'जिम्मेवार खेल (Responsible Play)',
     intro:
-      'झण्डी बुर्जा दशैंको रमाइलोका लागि हो। कोइन काल्पनिक हुन्, पैसा होइनन् — तर समय र भावना वास्तविक हुन्छन्। खेल रमाइलो रहोस् भन्नका लागि यी कुरा।',
+      'झण्डी बुर्जा रमाइलोका लागि हो। कोइन काल्पनिक हुन्, पैसा होइनन् — तर समय र भावना वास्तविक हुन्छन्। खेल रमाइलो रहोस् भन्नका लागि यी कुरा।',
     sections: [
       {
         heading: 'खेलभित्रै भएका सुरक्षा',
@@ -326,7 +325,7 @@ const en: Record<LegalDoc, LegalContent> = {
   'responsible-play': {
     title: 'Responsible Play',
     intro:
-      'Jhandi Burja is for Dashain fun. Coins are virtual, not money — but your time and feelings are real. Here is how we keep play healthy.',
+      'Jhandi Burja is for fun. Coins are virtual, not money — but your time and feelings are real. Here is how we keep play healthy.',
     sections: [
       {
         heading: 'Built into the game',
