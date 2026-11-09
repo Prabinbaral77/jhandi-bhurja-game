@@ -1,4 +1,5 @@
 import type { AppErrorShape } from '@jhandi/protocol/errors'
+import { ROOM_CLOSE_CODES } from '@jhandi/protocol/room'
 import type { Client, Room } from '@colyseus/core'
 import { z } from 'zod'
 
@@ -26,7 +27,8 @@ const allow = (client: Client): boolean => {
     return true
   }
   bucket.strikes += 1
-  if (bucket.strikes >= STRIKES_BEFORE_KICK) client.leave(4008, 'Too many messages')
+  if (bucket.strikes >= STRIKES_BEFORE_KICK)
+    client.leave(ROOM_CLOSE_CODES.tooManyMessages, 'Too many messages')
   return false
 }
 

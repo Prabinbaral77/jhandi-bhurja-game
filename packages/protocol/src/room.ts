@@ -155,6 +155,15 @@ export const SOUND_REACTIONS = [
 export type SoundReaction = (typeof SOUND_REACTIONS)[number]
 export const soundReactionMessageSchema = z.object({ sound: z.enum(SOUND_REACTIONS) })
 
+// WebSocket close codes we send. Colyseus reserves 4000–4010 for itself (4001 = server shutdown,
+// 4003 = failed to reconnect …), so ours live at 4100+; reusing 4001/4003 once made a server
+// restart look like "opened elsewhere" and a failed reconnect like "removed by the host".
+export const ROOM_CLOSE_CODES = {
+  openedElsewhere: 4101,
+  removedByHost: 4103,
+  tooManyMessages: 4108,
+} as const
+
 // ---------- Realtime: server → client ----------
 
 export const ROOM_SERVER_MESSAGES = {

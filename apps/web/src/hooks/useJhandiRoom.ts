@@ -11,6 +11,7 @@ import {
   txFeedMessageSchema,
   walletMessageSchema,
   ROOM_CLIENT_MESSAGES as OUT,
+  ROOM_CLOSE_CODES,
   ROOM_SERVER_MESSAGES as IN,
   type REACTIONS,
   type SoundReaction,
@@ -110,31 +111,59 @@ export const useJhandiRoom = (dbRoomId: string) => {
       on(room, IN.betAccepted, roomErrorMessageSchema.pick({ clientSeq: true }), () => {
         s.set({ lastError: null })
       })
+      // Handlers of a room object we already replaced must stay silent.
+      const isCurrent = () => !cancelled && roomRef.current === room
+      // The SDK first tries to resume the same session (bets and seat intact); keep that short
+      // (about 10 s) and inside the server's 60 s window, then fall back to a fresh join.
+      room.reconnection.maxRetries = 6
+      room.onDrop(() => {
+        if (isCurrent()) s.set({ connection: 'reconnecting' })
+      })
+      room.onReconnect(() => {
+        if (isCurrent()) s.set({ connection: 'connected' })
+      })
       room.onLeave((code: number) => {
-        if (cancelled) return
-        // 4003 = removed by the host; 4001 = this account opened the room elsewhere; 1000 = we
-        // left on purpose. Anything else (server restart, free host sleeping, lost signal) is
-        // not the player's doing: get back into the room automatically.
-        if (code === 4003 || code === 4001 || code === 1000) {
+        if (!isCurrent()) return
+        if (code === ROOM_CLOSE_CODES.removedByHost || code === ROOM_CLOSE_CODES.openedElsewhere) {
           s.set({
             connection: 'closed',
-            connectionError: code === 4003 ? 'REMOVED' : code === 4001 ? 'OPENED_ELSEWHERE' : null,
+            connectionError:
+              code === ROOM_CLOSE_CODES.removedByHost ? 'REMOVED' : 'OPENED_ELSEWHERE',
           })
           return
         }
-        roomRef.current = null
-        s.set({ connection: 'connecting' })
-        connect().catch((error: unknown) => {
+        // 1000 / 4000 = we (or the server, politely) closed it on purpose.
+        if (code === 1000 || code === 4000) {
+          s.set({ connection: 'closed', connectionError: null })
+          return
+        }
+        // Anything else — resume failed, server restarted or slept, signal lost — is not the
+        // player's doing: quietly take a fresh seat in the same room.
+        rejoin()
+      })
+      // Socket errors are never final here: a drop is followed by the SDK's resume attempts and,
+      // if those fail, by onLeave (verified against the SDK), which takes a fresh seat. Showing
+      // the raw error ("seat reservation expired") would only alarm the player.
+      room.onError(() => undefined)
+    }
+
+    let rejoining = false
+    const rejoin = () => {
+      if (cancelled || rejoining) return
+      rejoining = true
+      roomRef.current = null
+      store.set({ connection: 'reconnecting' })
+      connect()
+        .catch((error: unknown) => {
           if (cancelled) return
-          s.set({
+          useRoomStore.getState().set({
             connection: 'error',
             connectionError: error instanceof Error ? error.message : 'Could not rejoin the room',
           })
         })
-      })
-      room.onError((_code: number, message?: string) => {
-        s.set({ connection: 'error', connectionError: message ?? null })
-      })
+        .finally(() => {
+          rejoining = false
+        })
     }
 
     connect().catch((error: unknown) => {

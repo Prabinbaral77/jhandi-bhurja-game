@@ -154,7 +154,7 @@ const main = async () => {
   })
   hostRoom.send('host_remove_member', { userId: friend.id })
   for (let i = 0; i < 100 && leftCode === 0; i++) await sleep(100)
-  check(leftCode === 4003, `friend should be kicked with 4003, got ${leftCode}`)
+  check(leftCode === 4103, `friend should be kicked with 4103, got ${leftCode}`)
   check(
     (await joinFails(friend.token, created.roomId)).includes('NOT_INVITED'),
     'removed friend must be refused',

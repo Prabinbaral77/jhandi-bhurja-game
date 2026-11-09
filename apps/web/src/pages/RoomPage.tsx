@@ -102,6 +102,14 @@ export default function RoomPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {connection === 'reconnecting' && (
+        <p
+          role="status"
+          className="sticky top-2 z-40 self-center rounded-full bg-black/80 px-4 py-1.5 text-sm text-marigold shadow"
+        >
+          {t('reconnecting')}
+        </p>
+      )}
       <div className="flex flex-col gap-4">
         <header className="relative -mx-4 overflow-hidden sm:mx-0 sm:rounded-2xl">
           <VenueBackdrop venue={venue} className="h-40 w-full sm:h-48" />

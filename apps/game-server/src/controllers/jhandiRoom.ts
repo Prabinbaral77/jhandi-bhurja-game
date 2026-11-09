@@ -13,6 +13,7 @@ import {
   emptyMessageSchema,
   placeBetMessageSchema,
   reactionMessageSchema,
+  ROOM_CLOSE_CODES,
   soundReactionMessageSchema,
   removeMemberMessageSchema,
   ROOM_CLIENT_MESSAGES as IN,
@@ -88,7 +89,8 @@ interface Timer {
 const createOptionsSchema = z.object({ dbRoomId: z.uuid() })
 const joinOptionsSchema = z.object({ dbRoomId: z.uuid(), accessToken: z.string().min(1) })
 
-const RECONNECT_WINDOW_SEC = 30
+// How long a dropped player's seat (and bets) wait for the same session to come back.
+const RECONNECT_WINDOW_SEC = 60
 const HOST_AWAY_CLOSE_MS = 2 * 60 * 1000
 const SOUND_MIN_INTERVAL_MS = 3_000
 const HISTORY_LENGTH = 20
@@ -216,7 +218,8 @@ export class JhandiRoom extends Room<{
 
     // One live connection per user: a new tab replaces the old one.
     for (const other of this.clients) {
-      if (other !== client && other.auth?.userId === userId) other.leave(4001, 'Opened elsewhere')
+      if (other !== client && other.auth?.userId === userId)
+        other.leave(ROOM_CLOSE_CODES.openedElsewhere, 'Opened elsewhere')
     }
 
     const existing = this.state.members.get(userId)
@@ -522,7 +525,8 @@ export class JhandiRoom extends Room<{
     this.state.members.delete(userId)
     this.broadcast(OUT.memberRemoved, { userId })
     for (const other of this.clients) {
-      if (other.auth?.userId === userId) other.leave(4003, 'Removed by host')
+      if (other.auth?.userId === userId)
+        other.leave(ROOM_CLOSE_CODES.removedByHost, 'Removed by host')
     }
     this.publishSummary()
   }
