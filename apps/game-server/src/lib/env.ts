@@ -18,6 +18,20 @@ const envSchema = z.object({
   MATCHMAKE_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   // Shared room registry + pub/sub across several game-server nodes. Optional on one node.
   REDIS_URL: z.preprocess((value) => (value === '' ? undefined : value), z.url().optional()),
+  // House tables hosted by bots (comma-separated room names, e.g. Pokhara,Kathmandu). Empty = none.
+  HOUSE_BOTS: z.preprocess(
+    (value) =>
+      typeof value === 'string'
+        ? value
+            .split(',')
+            .map((part) => part.trim())
+            .filter(Boolean)
+        : [],
+    z.array(z.string().min(3).max(36)).max(12),
+  ),
+  // Starting wallet of each bot (granted once) and the bank it puts on its table.
+  HOUSE_BOT_COINS: z.coerce.number().int().positive().default(50_000),
+  HOUSE_BOT_DEPOSIT: z.coerce.number().int().positive().default(20_000),
   // Also serve the API (`/v1/trpc`) from this process: one host, one port (docs/deploy.md §0c).
   SERVE_API: z.preprocess((value) => value === 'true' || value === '1', z.boolean()).default(false),
 })

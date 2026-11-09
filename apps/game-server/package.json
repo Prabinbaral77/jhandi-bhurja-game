@@ -22,6 +22,7 @@
     "@colyseus/redis-driver": "0.18.5",
     "@colyseus/redis-presence": "0.18.5",
     "@colyseus/schema": "5.0.41",
+    "@colyseus/sdk": "0.18.5",
     "@colyseus/ws-transport": "0.18.4",
     "@jhandi/api": "workspace:*",
     "@jhandi/auth": "workspace:*",

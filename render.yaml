@@ -42,3 +42,10 @@ services:
         sync: false
       - key: REDIS_URL
         value: ""
+      # Bot-hosted public tables that are always open (one bot account per table).
+      - key: HOUSE_BOTS
+        value: "Pokhara,Kathmandu,Butwal,Mustang"
+      - key: HOUSE_BOT_COINS
+        value: "50000"
+      - key: HOUSE_BOT_DEPOSIT
+        value: "20000"

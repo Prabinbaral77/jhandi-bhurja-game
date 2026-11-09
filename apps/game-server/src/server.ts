@@ -1,4 +1,4 @@
-import { defineRoom, defineServer, LocalDriver, LocalPresence } from '@colyseus/core'
+import { defineRoom, defineServer, LocalDriver, LocalPresence, matchMaker } from '@colyseus/core'
 import { RedisDriver } from '@colyseus/redis-driver'
 import { RedisPresence } from '@colyseus/redis-presence'
 import { WebSocketTransport } from '@colyseus/ws-transport'
@@ -53,7 +53,8 @@ const server = defineServer({
       app.use(api.createApiApp())
       void api.warmUpDatabase()
     }
-    app.get('/health', (_req, res) => {
+    app.get('/health', async (_req, res) => {
+      const live = await matchMaker.query({ name: 'jhandi' })
       const health: Health = {
         ok: true,
         service: 'game-server',
@@ -61,6 +62,9 @@ const server = defineServer({
         dependencies: { redis: shared ? 'up' : 'disabled' },
         uptimeSec: Math.round(process.uptime()),
         memoryMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
+        // Live game rooms and people connected to them (house bots count as one each).
+        rooms: live.length,
+        connections: live.reduce((n, room) => n + room.clients, 0),
       }
       res.json(health)
     })
@@ -88,3 +92,7 @@ const sweep = setInterval(() => {
 }, SWEEP_MS)
 sweep.unref()
 logger.info({ port: env.GAME_SERVER_PORT, shared, closedAbandoned }, 'game-server listening')
+if (env.HOUSE_BOTS.length > 0) {
+  const { startHouseBots } = await import('#bots/houseBots')
+  startHouseBots(env.GAME_SERVER_PORT)
+}
